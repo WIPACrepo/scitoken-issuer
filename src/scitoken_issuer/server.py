@@ -1,8 +1,11 @@
-from collections.abc import Callable, Awaitable
-import importlib.resources
+# type: ignore[misc]
+# ignore complaints about get/set cookie and the base handler
+
+from collections.abc import Callable
+#import importlib.resources
 import json
 import logging
-import os
+#import os
 import secrets
 import time
 from typing import Any
@@ -681,10 +684,10 @@ class DeviceCodeVerify(BaseHandler):
         else:
             # user has entered the code
             try:
-                data = await self.state.get_device_code_by_user(user_code)
+                await self.state.get_device_code_by_user(user_code)
             except KeyError:
                 raise OAuthError(400, error='invalid_request', description='invalid user_code')
-            
+
             # now check with IdP
             self.redirect(url_concat('/login', {'next': '/device/complete', 'state': user_code}))
 

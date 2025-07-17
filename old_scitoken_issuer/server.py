@@ -1,3 +1,4 @@
+# type: ignore
 """
 Server for scitoken issuer
 """
@@ -9,7 +10,6 @@ from tornado.web import HTTPError, authenticated
 from rest_tools.server import RestServer, RestHandler, RestHandlerSetup, OpenIDLoginHandler
 from rest_tools.utils import from_environment
 
-from .issuer import SciTokenIssuer
 
 
 class Main(RestHandler):

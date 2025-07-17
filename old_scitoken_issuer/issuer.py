@@ -1,6 +1,4 @@
-import logging
-
-import scitokens
+# type: ignore
 from tornado.web import HTTPError
 
 class Error(HTTPError):
