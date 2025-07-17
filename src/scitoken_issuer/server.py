@@ -1,4 +1,4 @@
-# type: ignore[misc]
+# mypy: disable-error-code="misc"
 # ignore complaints about get/set cookie and the base handler
 
 from collections.abc import Callable
