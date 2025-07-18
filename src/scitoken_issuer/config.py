@@ -42,6 +42,8 @@ class EnvConfig:
     USE_LDAP: bool = False
 
     MONGODB_URL: str = 'mongodb://localhost/scitokens'
+    MONGODB_USER: str = ''
+    MONGODB_PASSWORD: str = ''
     MONGODB_TIMEOUT: int = 10  # seconds
     MONGODB_WRITE_CONCERN: int = 1  # number of replicas that need to be up
 

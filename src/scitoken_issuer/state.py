@@ -1,6 +1,7 @@
 import logging
 import time
 from typing import Any, TypedDict
+from urllib.parse import quote_plus
 import uuid
 
 import motor.motor_asyncio
@@ -74,12 +75,20 @@ class State:
         },
     }
 
-    def __init__(self):    
-        logging_url = config.ENV.MONGODB_URL.split('@')[-1] if '@' in config.ENV.MONGODB_URL else config.ENV.MONGODB_URL
-        logger.info(f'DB: {logging_url}')
+    def __init__(self):
         db_url, db_name = config.ENV.MONGODB_URL.rsplit('/', 1)
+        if '://' in db_url:
+            proto, db_url = db_url.split('://', 1)
+        else:
+            proto = 'mongodb'
+        if config.ENV.MONGODB_USER:
+            db_user = quote_plus(config.ENV.MONGODB_USER)
+            db_pass = quote_plus(config.ENV.MONGODB_PASSWORD)
+            uri = f'{proto}://{db_user}:{db_pass}@{db_url}/{db_name}'
+        else:
+            uri = f'{proto}://{db_url}/{db_name}'
         self.mongo = motor.motor_asyncio.AsyncIOMotorClient(
-            db_url,
+            uri,
             timeoutMS=config.ENV.MONGODB_TIMEOUT*1000,
             w=config.ENV.MONGODB_WRITE_CONCERN,
         )
