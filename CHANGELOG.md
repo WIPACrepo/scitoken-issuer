@@ -2,6 +2,13 @@
 
 
 
+## v0.0.3 (2025-07-18)
+
+###  
+
+* change mongo connection to fix issues (#3) ([`ec61f04`](https://github.com/WIPACrepo/scitoken-issuer/commit/ec61f049ccc0da87ffd40eab4f4c4e03d9e10241))
+
+
 ## v0.0.2 (2025-07-18)
 
 ###  
