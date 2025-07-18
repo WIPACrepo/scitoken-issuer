@@ -22,4 +22,4 @@ ENV PATH="$VIRTUAL_ENV/bin:$PATH"
 
 RUN --mount=source=.git,target=.git,type=bind pip install -e .
 
-CMD ["python", "-m", "wlcg_token_claims"]
+CMD ["python", "-m", "scitoken_issuer"]
