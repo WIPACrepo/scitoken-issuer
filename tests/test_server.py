@@ -307,8 +307,7 @@ async def test_device_auth(key, server, storage, monkeypatch):
                         assert login.call_count == 1
 
                         data = jwt.decode(token, options={"verify_signature": False})
-                        assert data['aud'] == scitoken_issuer.config.ENV.AUDIENCE
-                        assert data['aud'] == scitoken_issuer.config.ENV.AUDIENCE
+                        assert data['aud'] == [scitoken_issuer.config.ENV.AUDIENCE]
                         assert data['sub'] == user
                         return data
 

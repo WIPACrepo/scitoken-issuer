@@ -458,9 +458,11 @@ class Token(DisableXSRF, BaseHandler):
         access_token = auth.create_token(
             subject=username,
             payload={
-                'aud': config.ENV.AUDIENCE,
+                'aud': [config.ENV.AUDIENCE],
                 config.ENV.IDP_USERNAME_CLAIM: username,
                 'scope': scope,
+                'jti': uuid.uuid4().hex,
+                'wlcg.ver': 1.0,
             },
             headers={'kid': current_key['kid']},
         )
