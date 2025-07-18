@@ -2,6 +2,17 @@
 
 
 
+## v0.0.4 (2025-07-18)
+
+###  
+
+* some token adjustments for pelican (#4)
+
+* make aud a list for pelican
+
+* fix test ([`1731d67`](https://github.com/WIPACrepo/scitoken-issuer/commit/1731d6771b060f3b7c9933202893b76057fa8d3b))
+
+
 ## v0.0.3 (2025-07-18)
 
 ###  
