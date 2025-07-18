@@ -2,6 +2,13 @@
 
 
 
+## v0.0.2 (2025-07-18)
+
+###  
+
+* fix container command (#2) ([`27247a5`](https://github.com/WIPACrepo/scitoken-issuer/commit/27247a5b25a1105b5b827afa51ba40d4ee00096e))
+
+
 ## v0.0.1 (2025-07-18)
 
 ###  
