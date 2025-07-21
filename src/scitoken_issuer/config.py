@@ -1,6 +1,8 @@
 import dataclasses as dc
+import json
 import logging
 import secrets
+from typing import Any
 
 from wipac_dev_tools import from_environment_as_dataclass
 
@@ -28,7 +30,7 @@ class EnvConfig:
     IDP_USERNAME_CLAIM: str = 'preferred_username'
 
     ISSUER_ADDRESS: str = ''
-    AUDIENCE: str = ''
+    CUSTOM_CLAIMS: dict[str, Any] | str = ''
     KEY_TYPE: str = 'RS256'
 
     ACCESS_TOKEN_EXPIRATION: int = 300  # seconds
@@ -68,10 +70,10 @@ class EnvConfig:
                 raise ConfigError('Must specify IDP_CLIENT_ID in production')
             if not self.IDP_CLIENT_SECRET:
                 raise ConfigError('Must specify IDP_CLIENT_SECRET in production')
-            if not self.AUDIENCE:
-                raise ConfigError('Must specify AUDIENCE in production')
             if not self.MONGODB_URL:
                 raise ConfigError('Must specify MONGODB_URL in production')
+        if self.CUSTOM_CLAIMS and isinstance(self.CUSTOM_CLAIMS, str):
+            object.__setattr__(self, 'CUSTOM_CLAIMS', json.loads(self.CUSTOM_CLAIMS))
         if self.KEY_TYPE not in DEFAULT_KEY_ALGORITHMS:
             raise ConfigError(f'KEY_TYPE must be one of {DEFAULT_KEY_ALGORITHMS}')
         if self.MONGODB_WRITE_CONCERN < 1:

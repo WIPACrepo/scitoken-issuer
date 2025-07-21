@@ -450,27 +450,32 @@ class Token(DisableXSRF, BaseHandler):
         current_key = await self.state.get_current_key()
         auth = Auth(
             secret=current_key['private_key'],
-            audience=config.ENV.AUDIENCE,
             issuer=config.ENV.ISSUER_ADDRESS,
             algorithm=config.ENV.KEY_TYPE,
             integer_times=True,  # scitokens-cpp can't handle floats
         )
+        access_claims = {
+            'jti': uuid.uuid4().hex,
+            config.ENV.IDP_USERNAME_CLAIM: username,
+            'scope': access_scope,
+        }
+        if config.ENV.CUSTOM_CLAIMS:
+            logger.info('custom claims: %r', config.ENV.CUSTOM_CLAIMS)
+            if not set(access_claims).isdisjoint(config.ENV.CUSTOM_CLAIMS):
+                logger.error('CUSTOM_CLAIMS should not override existing claims')
+                raise OAuthError(500, error="invalid_claims")
+            access_claims.update(config.ENV.CUSTOM_CLAIMS)
         access_token = auth.create_token(
             subject=username,
             expiration=config.ENV.ACCESS_TOKEN_EXPIRATION,
-            payload={
-                'aud': [config.ENV.AUDIENCE],
-                config.ENV.IDP_USERNAME_CLAIM: username,
-                'scope': access_scope,
-                'jti': uuid.uuid4().hex,
-                'wlcg.ver': '1.0',
-            },
+            payload=access_claims,
             headers={'kid': current_key['kid']},
         )
         refresh_token = auth.create_token(
             subject=username,
             expiration=config.ENV.REFRESH_TOKEN_EXPIRATION,
             payload={
+                'jti': uuid.uuid4().hex,
                 'aud': config.ENV.ISSUER_ADDRESS,
                 config.ENV.IDP_USERNAME_CLAIM: username,
                 'idp_username': username,

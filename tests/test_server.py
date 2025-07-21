@@ -126,7 +126,6 @@ def server(port, storage, keycloak, mongo_clear):
             CI_TESTING=True,
             PORT=port,
             ISSUER_ADDRESS='',
-            AUDIENCE='storage',
             POSIX_PATH=str(tmp_path),
             DEVICE_CODE_POLLING_INTERVAL=.1):
 
@@ -307,7 +306,6 @@ async def test_device_auth(key, server, storage, monkeypatch):
                         assert login.call_count == 1
 
                         data = jwt.decode(token, options={"verify_signature": False})
-                        assert data['aud'] == [scitoken_issuer.config.ENV.AUDIENCE]
                         assert data['sub'] == user
                         return data
 
@@ -455,15 +453,19 @@ async def test_scitokens(server, storage, monkeypatch):
     """
     users, _, _ = storage
     user = 'test1'
-    async with server() as address:
-        login = Mock(side_effect=do_device_login(user))
-        monkeypatch.setattr('rest_tools.client.device_client._print_qrcode', login)
-        scopes = ['storage.read:/data/ana/project1/sub1']
-        async with make_client(address, scopes) as rc:
-            token = rc._openid_token()
-            assert token
-            access_data = jwt.decode(token, options={"verify_signature": False})
-            logging.info('access token: %r', access_data)
-            assert isinstance(access_data['exp'], int)
 
-            assert access_data['wlcg.ver'] == '1.0'
+    with env(CUSTOM_CLAIMS='{"aud": ["https://wlcg.cern.ch/jwt/v1/any"], "wlcg.ver":"1.0"}'):
+        async with server() as address:
+            login = Mock(side_effect=do_device_login(user))
+            monkeypatch.setattr('rest_tools.client.device_client._print_qrcode', login)
+            scopes = ['storage.read:/data/ana/project1/sub1']
+            async with make_client(address, scopes) as rc:
+                token = rc._openid_token()
+                assert token
+                access_data = jwt.decode(token, options={"verify_signature": False})
+                logging.info('access token: %r', access_data)
+                assert isinstance(access_data['exp'], int)
+
+                assert access_data['wlcg.ver'] == '1.0'
+
+                assert 'https://wlcg.cern.ch/jwt/v1/any' in access_data['aud']
