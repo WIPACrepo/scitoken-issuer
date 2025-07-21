@@ -287,7 +287,7 @@ class WellKnown(BaseHandler):
             'token_endpoint': f'{base}/token',
             'userinfo_endpoint': f'{base}/userinfo',
             'jwks_uri': f'{base}/certs',
-            'registration_endpoint': f'{base}/client/registration',
+            'registration_endpoint': f'{base}/client',
             'device_authorization_endpoint': f'{base}/device/code',
             'scopes_supported': [
                 'openid',
