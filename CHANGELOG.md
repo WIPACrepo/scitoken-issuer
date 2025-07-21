@@ -2,6 +2,13 @@
 
 
 
+## v0.1.1 (2025-07-21)
+
+###  
+
+* fix CUSTOM_CLAIMS weird dataclass error (#8) ([`b5140d6`](https://github.com/WIPACrepo/scitoken-issuer/commit/b5140d66c9721dd97093c83ae4e933f67f5a97cf))
+
+
 ## v0.1.0 (2025-07-21)
 
 ### [minor]
