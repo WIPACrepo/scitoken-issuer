@@ -2,6 +2,13 @@
 
 
 
+## v0.0.5 (2025-07-21)
+
+###  
+
+* adjust exp to use integer times (#5) ([`5adb974`](https://github.com/WIPACrepo/scitoken-issuer/commit/5adb974c7b69e15f3da7f6a9ae59afa3da30ee2b))
+
+
 ## v0.0.4 (2025-07-18)
 
 ###  
