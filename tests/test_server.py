@@ -454,7 +454,7 @@ async def test_scitokens(server, storage, monkeypatch):
     users, _, _ = storage
     user = 'test1'
 
-    with env(CUSTOM_CLAIMS='{"aud": ["https://wlcg.cern.ch/jwt/v1/any"], "wlcg.ver":"1.0"}'):
+    with env(CUSTOM_CLAIMS_JSON='{"aud": ["https://wlcg.cern.ch/jwt/v1/any"], "wlcg.ver":"1.0"}'):
         async with server() as address:
             login = Mock(side_effect=do_device_login(user))
             monkeypatch.setattr('rest_tools.client.device_client._print_qrcode', login)
