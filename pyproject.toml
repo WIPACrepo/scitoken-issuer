@@ -25,7 +25,7 @@ dependencies = [
     "tornado",
     "wipac-dev-tools",
     "wipac-keycloak-rest-services>=1.4.123",
-    "wipac-rest-tools>=1.10",
+    "wipac-rest-tools>=1.11",
 ]
 dynamic = ["version"]
 

@@ -427,3 +427,37 @@ async def test_authorize(server, storage, monkeypatch):
                     assert 'access_token' in ret
                     assert 'refresh_token' in ret
 
+
+async def test_scopes(server, storage, monkeypatch):
+    users, _, _ = storage
+    async with server() as address:
+        for user in users:
+            login = Mock(side_effect=do_device_login(user))
+            monkeypatch.setattr('rest_tools.client.device_client._print_qrcode', login)
+            scopes = ['storage.read:/data/ana/project1/sub1']
+            async with make_client(address, scopes) as rc:
+                token = rc._openid_token()
+                assert token
+                access_data = jwt.decode(token, options={"verify_signature": False})
+                logging.info('access token: %r', access_data)
+                assert all('storage' in s for s in access_data['scope'].split())
+                
+                refresh_data = jwt.decode(rc.refresh_token, options={"verify_signature": False})
+                assert access_data['scope'] in refresh_data['scope']
+                assert 'offline_access' in refresh_data['scope']
+
+
+async def test_exp(server, storage, monkeypatch):
+    # scitokens-cpp requires integer times in the token claims
+    users, _, _ = storage
+    user = 'test1'
+    async with server() as address:
+        login = Mock(side_effect=do_device_login(user))
+        monkeypatch.setattr('rest_tools.client.device_client._print_qrcode', login)
+        scopes = ['storage.read:/data/ana/project1/sub1']
+        async with make_client(address, scopes) as rc:
+            token = rc._openid_token()
+            assert token
+            access_data = jwt.decode(token, options={"verify_signature": False})
+            logging.info('access token: %r', access_data)
+            assert isinstance(access_data['exp'], int)
