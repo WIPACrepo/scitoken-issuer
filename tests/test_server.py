@@ -447,8 +447,12 @@ async def test_scopes(server, storage, monkeypatch):
                 assert 'offline_access' in refresh_data['scope']
 
 
-async def test_exp(server, storage, monkeypatch):
-    # scitokens-cpp requires integer times in the token claims
+async def test_scitokens(server, storage, monkeypatch):
+    """
+    scitokens-cpp requires specific claim values:
+    * integer times for exp, iat, nbf
+    * wlcg.ver is a string "1.0"
+    """
     users, _, _ = storage
     user = 'test1'
     async with server() as address:
@@ -461,3 +465,5 @@ async def test_exp(server, storage, monkeypatch):
             access_data = jwt.decode(token, options={"verify_signature": False})
             logging.info('access token: %r', access_data)
             assert isinstance(access_data['exp'], int)
+
+            assert access_data['wlcg.ver'] == '1.0'
