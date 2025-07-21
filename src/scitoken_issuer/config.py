@@ -30,7 +30,8 @@ class EnvConfig:
     IDP_USERNAME_CLAIM: str = 'preferred_username'
 
     ISSUER_ADDRESS: str = ''
-    CUSTOM_CLAIMS: dict[str, Any] | str = ''
+    CUSTOM_CLAIMS_JSON: str = ''
+    CUSTOM_CLAIMS: dict[str, Any] | None = None
     KEY_TYPE: str = 'RS256'
 
     ACCESS_TOKEN_EXPIRATION: int = 300  # seconds
@@ -72,8 +73,8 @@ class EnvConfig:
                 raise ConfigError('Must specify IDP_CLIENT_SECRET in production')
             if not self.MONGODB_URL:
                 raise ConfigError('Must specify MONGODB_URL in production')
-        if self.CUSTOM_CLAIMS and isinstance(self.CUSTOM_CLAIMS, str):
-            object.__setattr__(self, 'CUSTOM_CLAIMS', json.loads(self.CUSTOM_CLAIMS))
+        if self.CUSTOM_CLAIMS_JSON:
+            object.__setattr__(self, 'CUSTOM_CLAIMS', json.loads(self.CUSTOM_CLAIMS_JSON))
         if self.KEY_TYPE not in DEFAULT_KEY_ALGORITHMS:
             raise ConfigError(f'KEY_TYPE must be one of {DEFAULT_KEY_ALGORITHMS}')
         if self.MONGODB_WRITE_CONCERN < 1:
