@@ -443,7 +443,8 @@ class Token(DisableXSRF, BaseHandler):
 
         # check scopes
         scope = self._process_scopes(username, scope)
-        logging.info('create token for user %s, scope %s', username, scope)
+        access_scope = ' '.join(s for s in scope.split() if 'storage' in s)
+        logging.info('create token for user %s, refresh scope %r, access scope %r', username, scope, access_scope)
 
         # grant token
         current_key = await self.state.get_current_key()
@@ -452,15 +453,15 @@ class Token(DisableXSRF, BaseHandler):
             audience=config.ENV.AUDIENCE,
             issuer=config.ENV.ISSUER_ADDRESS,
             algorithm=config.ENV.KEY_TYPE,
-            expiration=config.ENV.REFRESH_TOKEN_EXPIRATION,
-            expiration_temp=config.ENV.ACCESS_TOKEN_EXPIRATION,
+            integer_times=True,  # scitokens-cpp can't handle floats
         )
         access_token = auth.create_token(
             subject=username,
+            expiration=config.ENV.ACCESS_TOKEN_EXPIRATION,
             payload={
                 'aud': [config.ENV.AUDIENCE],
                 config.ENV.IDP_USERNAME_CLAIM: username,
-                'scope': scope,
+                'scope': access_scope,
                 'jti': uuid.uuid4().hex,
                 'wlcg.ver': 1.0,
             },
@@ -468,7 +469,7 @@ class Token(DisableXSRF, BaseHandler):
         )
         refresh_token = auth.create_token(
             subject=username,
-            type='refresh',
+            expiration=config.ENV.REFRESH_TOKEN_EXPIRATION,
             payload={
                 'aud': config.ENV.ISSUER_ADDRESS,
                 config.ENV.IDP_USERNAME_CLAIM: username,
