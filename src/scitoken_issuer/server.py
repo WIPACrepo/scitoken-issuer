@@ -463,7 +463,7 @@ class Token(DisableXSRF, BaseHandler):
                 config.ENV.IDP_USERNAME_CLAIM: username,
                 'scope': access_scope,
                 'jti': uuid.uuid4().hex,
-                'wlcg.ver': 1.0,
+                'wlcg.ver': '1.0',
             },
             headers={'kid': current_key['kid']},
         )
