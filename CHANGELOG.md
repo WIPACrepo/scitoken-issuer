@@ -2,6 +2,13 @@
 
 
 
+## v0.1.0 (2025-07-21)
+
+### [minor]
+
+* [minor] use custom claims overrides so we can directly specify special wlcg/scitoken claims (#7) ([`79a1623`](https://github.com/WIPACrepo/scitoken-issuer/commit/79a1623ec4767bc467454e5d0c59c50c2ca62646))
+
+
 ## v0.0.6 (2025-07-21)
 
 ###  
