@@ -2,6 +2,13 @@
 
 
 
+## v0.1.2 (2025-07-21)
+
+###  
+
+* fix .well-known client registration url (#9) ([`cbf05c7`](https://github.com/WIPACrepo/scitoken-issuer/commit/cbf05c7bce9a1de5e82fab62c65fda71496485cb))
+
+
 ## v0.1.1 (2025-07-21)
 
 ###  
