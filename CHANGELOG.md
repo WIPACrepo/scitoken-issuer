@@ -2,6 +2,13 @@
 
 
 
+## v0.0.6 (2025-07-21)
+
+###  
+
+* make wlcg.ver a string (#6) ([`ec66d8f`](https://github.com/WIPACrepo/scitoken-issuer/commit/ec66d8f2df6722d3175a9c221f010b54fa806e47))
+
+
 ## v0.0.5 (2025-07-21)
 
 ###  
