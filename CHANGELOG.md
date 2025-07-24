@@ -2,6 +2,17 @@
 
 
 
+## v0.2.0 (2025-07-24)
+
+### [minor]
+
+* [minor] Static clients (#10)
+
+* script to delete old clients
+
+* add static clients ([`6c8530a`](https://github.com/WIPACrepo/scitoken-issuer/commit/6c8530a26193c5ffd3e1bdeac937781d157b38f5))
+
+
 ## v0.1.2 (2025-07-21)
 
 ###  
