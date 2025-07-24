@@ -328,10 +328,14 @@ async def test_device_auth(key, server, storage, monkeypatch):
                         cause: requests.HTTPError = e.value.__cause__  # type: ignore
                         if not cause:
                             logging.warning('%r', e.value)
+                            assert False
                         assert 'invalid scopes' == cause.response.json()['error_description']
                         with pytest.raises(Exception) as e:
                             await common(['storage.modify:/data/ana/project3/sub1'])
                         cause: requests.HTTPError = e.value.__cause__  # type: ignore
+                        if not cause:
+                            logging.warning('%r', e.value)
+                            assert False
                         assert 'invalid scopes' == cause.response.json()['error_description']
 
 
@@ -469,3 +473,75 @@ async def test_scitokens(server, storage, monkeypatch):
                 assert access_data['wlcg.ver'] == '1.0'
 
                 assert 'https://wlcg.cern.ch/jwt/v1/any' in access_data['aud']
+
+
+async def test_static_client(server, storage, monkeypatch):
+    users, _, _ = storage
+    user = 'test1'
+    client_id = 'foo'
+    client_secret = 'bar'
+
+    with env(STATIC_CLIENTS_JSON=f'{{"{client_id}": "{client_secret}"}}'):
+        async with server() as address:
+            login = Mock(side_effect=do_device_login(user))
+            monkeypatch.setattr('rest_tools.client.device_client._print_qrcode', login)
+            scope = 'storage.read:/data/ana/project1/sub1'
+
+            with requests.Session() as session:
+                redirect_uri = 'http://localhost/foo/bar'
+                args = {
+                    'client_id': client_id,
+                    'response_type': 'code',
+                    'redirect_uri': redirect_uri,
+                    'scope': scope,
+                }
+                r = session.get(f'{address}/authorize', params=args)
+                r.raise_for_status()
+                logging.info('redirections: %r', r.history)
+                # should redirect to IdP login form, for us to complete
+                soup = bs4.BeautifulSoup(r.text, features='html.parser', multi_valued_attributes=None)
+                form = soup.select_one('#kc-form-login')
+                if not form:
+                    raise Exception('cannot find login form in Keycloak!')
+                action = unescape(form['action'])  # type:ignore
+                logging.info('logging in to IdP with %s', action)
+                logging.info('cookies: %r', r.cookies)
+                data = {
+                    'username': user,
+                    'password': 'test',
+                }
+                cookies = requests.utils.dict_from_cookiejar(r.cookies)
+                url = None
+                try:
+                    r2 = session.post(action, data=data, cookies=cookies)
+                    logging.info('cookies2: %r', r2.cookies)
+                    url = r2.request.url
+                    r2.raise_for_status()
+                except requests.exceptions.ConnectionError as e:
+                    if e.request:
+                        url = e.request.url
+                        if not url or not url.startswith(redirect_uri):
+                            raise
+                except requests.exceptions.RequestException as e:
+                    if e.response:
+                        logging.error('bad request: %s', e.response.text, exc_info=True)
+                    raise
+                else:
+                    logging.info('redirections: %r', r2.history)
+                # should redirect back to issuer
+                p = urllib.parse.urlparse(url)
+                params = urllib.parse.parse_qs(str(p.query)) if p.query else ''
+                assert params
+                assert 'code' in params
+
+                args = {
+                    'grant_type': 'authorization_code',
+                    'client_id': client_id,
+                    'code': params['code'][0],
+                    'redirect_uri': redirect_uri,
+                }
+                r3 = session.post(f'{address}/token', data=args, auth=HTTPBasicAuth(client_id, client_secret))
+                r3.raise_for_status()
+                ret = r3.json()
+                assert 'access_token' in ret
+                assert 'refresh_token' in ret

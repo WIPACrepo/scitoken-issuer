@@ -105,6 +105,34 @@ class State:
                     await self.db[collection].create_index(name=name, **kwargs)
         logger.info('all indexes created')
 
+        static_clients = config.ENV.STATIC_CLIENTS if config.ENV.STATIC_CLIENTS else {}
+        ret = await self.list_clients()
+        existing_client_ids = set()
+        for client in ret:
+            if client.get('static_client', False) and client['client_id'] not in static_clients:
+                logger.info('deleting old static client %s', client['client_id'])
+                await self.delete_client(client['client_id'])
+            else:
+                existing_client_ids.add(client['client_id'])
+        now = int(time.time())
+        for client_id,client_secret in static_clients.items():
+            logger.info('setting up client %s', client_id)
+            data = {
+                'static_client': True,
+                'redirect_uris': ['*'],  # any uri is valid
+                'grant_types': ['authorization_code', 'urn:ietf:params:oauth:grant-type:device_code'],
+                'response_types': 'code',
+                'client_name': client_id,
+                'client_id': client_id,
+                'client_secret': client_secret,
+                'client_id_issued_at': now,
+                'client_secret_expires_at': now + 1000000000000,  # does not expire
+            }
+            if client_id in existing_client_ids:
+                await self.update_client(client_id, data)
+            else:
+                await self.add_client(data)
+
     async def get_jwks(self) -> dict[str, list[Any]]:
         """Get a full jwks json for all valid keys"""
         jwks = []
@@ -165,6 +193,12 @@ class State:
         assert 'client_id' in details
         await self.db.clients.insert_one(details.copy())
 
+    async def list_clients(self) -> list[dict[str, Any]]:
+        """
+        List all clients.
+        """
+        return await self.db.clients.find({}, projection={'_id': False}).to_list(1000000)
+
     async def get_client(self, client_id: str) -> dict[str, Any]:
         """
         Get client details.
@@ -172,11 +206,21 @@ class State:
         Raises:
             KeyError: If the client is not found.
         """
-        ret = await self.db.clients.find_one({'client_id': client_id})
+        ret = await self.db.clients.find_one({'client_id': client_id}, projection={'_id': False})
         if ret is None:
             raise KeyError('client_id not found')
-        del ret['_id']
         return ret
+
+    async def update_client(self, client_id: str, data: dict[str, Any]):
+        """
+        Update client details.
+
+        Raises:
+            KeyError: If the client is not found.
+        """
+        ret = await self.db.clients.find_one_and_update({'client_id': client_id}, {'$set': data})
+        if ret is None:
+            raise KeyError('client_id not found')
 
     async def delete_client(self, client_id: str):
         """
@@ -193,6 +237,8 @@ class State:
             except KeyError:
                 return
             raise Exception('client_id cannot be deleted')
+        else:
+            await self.db.device_codes.delete_many({'client_id': client_id})
 
     async def add_auth_code(self, code: str, client_id: str, scope: str = '', username: str = '', redirect=''):
         """
@@ -214,10 +260,9 @@ class State:
         Raises:
             KeyError: If the code is not found.
         """
-        ret = await self.db.auth_codes.find_one({'code': code})
+        ret = await self.db.auth_codes.find_one({'code': code}, projection={'_id': False})
         if ret is None:
             raise KeyError('code not found')
-        del ret['_id']
         return ret
 
     async def delete_auth_code(self, code: str):
@@ -277,10 +322,9 @@ class State:
         Raises:
             KeyError: If the device code is not found.
         """
-        ret = await self.db.device_codes.find_one({'device_code': device_code})
+        ret = await self.db.device_codes.find_one({'device_code': device_code}, projection={'_id': False})
         if ret is None:
             raise KeyError('device_code not found')
-        del ret['_id']
         return ret
 
     async def get_device_code_by_user(self, user_code: str) -> dict:
@@ -290,10 +334,9 @@ class State:
         Raises:
             KeyError: If the device code is not found.
         """
-        ret = await self.db.device_codes.find_one({'user_code': user_code})
+        ret = await self.db.device_codes.find_one({'user_code': user_code}, projection={'_id': False})
         if ret is None:
             raise KeyError('device_code not found')
-        del ret['_id']
         return ret
 
     async def delete_device_code(self, device_code: str):
@@ -314,10 +357,10 @@ class State:
 
     async def put_identity_for_sub(self, sub: str, token: str):
         """Put identity refresh token for a subject"""
-        await self.db.identity.insert_one({
+        await self.db.identity.replace_one({'sub': sub}, {
             'sub': sub,
             'token': token,
-        })
+        }, upsert=True)
 
     async def get_identity_for_sub(self, sub: str) -> str:
         """

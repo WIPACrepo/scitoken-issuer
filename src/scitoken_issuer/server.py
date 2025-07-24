@@ -405,6 +405,15 @@ class Token(DisableXSRF, BaseHandler):
                 except Exception:
                     logger.info('error validating refresh token', exc_info=True)
                     raise OAuthError(400, error='invalid_grant', description='invalid refresh token')
+            
+                # the scope body arg is optional, so fall back to the refresh scopes if necessary
+                if not scope:
+                    scope = data.get('scope', '')
+                else:
+                    refresh_scope = set(data.get('scope', '').split())
+                    if not refresh_scope.issuperset(scope.split()):
+                        logger.info('requested scope is broader than refresh token scope: %s > %s', scope, refresh_scope)
+                        raise OAuthError(400, error='invalid_request', description='invalid scope')
 
                 # check against IdP
                 username = await self.get_idp_username(username)
@@ -485,7 +494,7 @@ class Token(DisableXSRF, BaseHandler):
         )
         self.write({
             'access_token': access_token,
-            'token_type': 'bearer',
+            'token_type': 'Bearer',
             'expires_in': config.ENV.ACCESS_TOKEN_EXPIRATION,
             'refresh_token': refresh_token,
             'scope': scope,
@@ -919,6 +928,7 @@ class Server:
         self.server = server
 
     async def start(self):
+        await self.state.start()
         # make sure we have a private key
         await self.state.get_current_key()
 
