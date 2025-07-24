@@ -9,6 +9,7 @@ WORKDIR /app
 
 COPY src /app/src
 COPY pyproject.toml /app/pyproject.toml
+COPY resources /app/resources
 
 RUN chown -R app:app /app
 
