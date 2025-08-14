@@ -27,6 +27,45 @@ async def test_start(mongo_clear):
     await s.start()
 
 
+async def test_start_static_clients(mongo_clear):
+    with env(STATIC_CLIENTS='{"foo": "bar"}'):
+        s = state.State()
+        await s.start()
+
+        ret = await s.get_client("foo")
+        assert ret['static_client'] == True
+
+
+async def test_start_static_impersonation_clients(mongo_clear):
+    with env(STATIC_IMPERSONATION_CLIENTS='{"bar": "bar"}'):
+        s = state.State()
+        await s.start()
+
+        ret = await s.get_client("bar")
+        assert ret['static_client'] == True
+        assert ret['impersonation'] == True
+        
+    with env(STATIC_CLIENTS='{"bar": "bar"}', STATIC_IMPERSONATION_CLIENTS='{"bar": "bar"}'):
+        s = state.State()
+        await s.start()
+
+        ret = await s.get_client("bar")
+        assert ret['static_client'] == True
+        assert ret['impersonation'] == True
+        
+    with env(STATIC_CLIENTS='{"foo": "bar"}', STATIC_IMPERSONATION_CLIENTS='{"bar": "bar"}'):
+        s = state.State()
+        await s.start()
+
+        ret = await s.get_client("foo")
+        assert ret['static_client'] == True
+        assert ret.get('impersonation', False) == False
+
+        ret = await s.get_client("bar")
+        assert ret['static_client'] == True
+        assert ret['impersonation'] == True
+
+
 async def test_get_jwks(mongo_clear):
     s = state.State()
     await s.start()

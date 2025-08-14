@@ -106,6 +106,8 @@ class State:
         logger.info('all indexes created')
 
         static_clients = config.ENV.STATIC_CLIENTS if config.ENV.STATIC_CLIENTS else {}
+        static_imp_clients = config.ENV.STATIC_IMPERSONATION_CLIENTS if config.ENV.STATIC_IMPERSONATION_CLIENTS else {}
+        static_clients.update(static_imp_clients)
         ret = await self.list_clients()
         existing_client_ids = set()
         for client in ret:
@@ -128,6 +130,8 @@ class State:
                 'client_id_issued_at': now,
                 'client_secret_expires_at': now + 1000000000000,  # does not expire
             }
+            if client_id in static_imp_clients:
+                data['impersonation'] = True
             if client_id in existing_client_ids:
                 await self.update_client(client_id, data)
             else:
