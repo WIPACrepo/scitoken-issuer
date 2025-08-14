@@ -14,15 +14,41 @@ and it will start a web server capable of issuing tokens.
 * IDP_ADDRESS - the full address to the upstream identity provider
 * IDP_CLIENT_ID - the upstream identity provider client id
 * IDP_CLIENT_SECRET - the upstream identity provider client secret
+* IDP_USERNAME_CLAIM - the username claim in the identity token (default: preferred_username)
+
 * ISSUER_ADDRESS - the full address to this issuer
-* AUDIENCE - aud to add to tokens
+* CUSTOM_CLAIMS - a json of custom claims to add, like `aud`
+* KEY_TYPE - the issuer public key type (default: RS256)
+* STATIC_CLIENTS - statically registered clients, json of client_id: client_secret
+* STATIC_IMPERSONATION_CLIENTS - like above, except these can do impersonation via token exchange
+
 * POSIX_PATH - base path for group information lookup
 
+* MONGODB_URL: str = 'mongodb://localhost/scitokens'
+* MONGODB_USER: str = ''
+* MONGODB_PASSWORD: str = ''
+* MONGODB_TIMEOUT: int = 10  # seconds
+* MONGODB_WRITE_CONCERN: int = 1  # number of replicas that need to be up
+
+* HOST - the interface to bind to. set to an empty string to bind to all interfaces (default: localhost)
+* PORT - port to bind to (default :8080)
+* COOKIE_SECRET - for browser-based cross-site scripting protection, set a hex string
+* DEBUG - only useful for debugging, prints more info in the browser on failures (default: false)
+* LOG_LEVEL - log verbosity (default: INFO)
+
 If you use LDAP:
-* USE_LDAP - boolean
+* USE_LDAP - enable LDAP support (default: false)
 * LDAP_URL - full address to ldap server
 * LDAP_USER_BASE - user OU
 * LDAP_GROUP_BASE - group OU
+
+Some time intervals in seconds (override as necessary):
+* ACCESS_TOKEN_EXPIRATION
+* REFRESH_TOKEN_EXPIRATION
+* DEVICE_CODE_POLLING_INTERVAL
+* DEVICE_CODE_EXPIRATION
+* AUTHORIZATION_CODE_EXPIRATION
+* CLIENT_REGISTRATION_EXPIRATION
 
 ## Code Structure
 
