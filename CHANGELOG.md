@@ -2,6 +2,13 @@
 
 
 
+## v0.3.2 (2025-08-14)
+
+###  
+
+* update readme ([`7fcfec9`](https://github.com/WIPACrepo/scitoken-issuer/commit/7fcfec9fc360ace5ea50f795722a6fe0e4abe970))
+
+
 ## v0.3.1 (2025-08-14)
 
 ###  
