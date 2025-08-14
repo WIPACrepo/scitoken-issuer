@@ -22,6 +22,11 @@ DEFAULT_KEY_ALGORITHMS = [
 ]
 
 
+class ConfigJson(dict):
+    def __init__(self, data: str = '{}'):
+        self.update(json.loads(data))
+
+
 @dc.dataclass(frozen=True)
 class EnvConfig:
     IDP_ADDRESS: str = ''
@@ -30,8 +35,7 @@ class EnvConfig:
     IDP_USERNAME_CLAIM: str = 'preferred_username'
 
     ISSUER_ADDRESS: str = ''
-    CUSTOM_CLAIMS_JSON: str = ''
-    CUSTOM_CLAIMS: dict[str, Any] | None = None
+    CUSTOM_CLAIMS: ConfigJson | None = None  # dict of custom claims for the access token
     KEY_TYPE: str = 'RS256'
 
     ACCESS_TOKEN_EXPIRATION: int = 300  # seconds
@@ -41,8 +45,8 @@ class EnvConfig:
     AUTHORIZATION_CODE_EXPIRATION: int = 600  # seconds
     CLIENT_REGISTRATION_EXPIRATION: int = 86400  # seconds
 
-    STATIC_CLIENTS_JSON: str = ''  # dict of client_id: client_secret
-    STATIC_CLIENTS: dict[str, str] | None = None
+    STATIC_CLIENTS: ConfigJson | None = None  # dict of client_id: client_secret
+    STATIC_IMPERSONATION_CLIENTS: ConfigJson | None = None
 
     POSIX_PATH: str = '/'
     USE_LDAP: bool = False
@@ -76,12 +80,8 @@ class EnvConfig:
                 raise ConfigError('Must specify IDP_CLIENT_SECRET in production')
             if not self.MONGODB_URL:
                 raise ConfigError('Must specify MONGODB_URL in production')
-        if self.CUSTOM_CLAIMS_JSON:
-            object.__setattr__(self, 'CUSTOM_CLAIMS', json.loads(self.CUSTOM_CLAIMS_JSON))
         if self.KEY_TYPE not in DEFAULT_KEY_ALGORITHMS:
             raise ConfigError(f'KEY_TYPE must be one of {DEFAULT_KEY_ALGORITHMS}')
-        if self.STATIC_CLIENTS_JSON:
-            object.__setattr__(self, 'STATIC_CLIENTS', json.loads(self.STATIC_CLIENTS_JSON))
         if self.MONGODB_WRITE_CONCERN < 1:
             raise ConfigError('MONGODB_WRITE_CONCERN must be greater than 0')
         if not self.COOKIE_SECRET:

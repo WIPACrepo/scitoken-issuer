@@ -360,6 +360,9 @@ class Token(DisableXSRF, BaseHandler):
         if code_challenge:
             raise OAuthError(400, error='unsupported_grant_type', description='code_challenge unsupported')
 
+        # any extra fields from the grant type handling
+        extra_return_fields = {}
+
         # do things based on grant type
         grant_type = self.get_body_argument('grant_type', '')
         logger.info('token grant type: %s', grant_type)
@@ -420,6 +423,28 @@ class Token(DisableXSRF, BaseHandler):
                 if not username:
                     raise OAuthError(400, error='invalid_grant', description='invalid IdP token')
 
+            case 'client_credentials':
+                scope = self.get_body_argument('scope', '')
+
+                current_key = await self.state.get_current_key()
+                auth = Auth(
+                    secret=current_key['private_key'],
+                    issuer=config.ENV.ISSUER_ADDRESS,
+                    algorithm=config.ENV.KEY_TYPE,
+                )
+                access_token = auth.create_token(
+                    subject=client_id,
+                    expiration=config.ENV.ACCESS_TOKEN_EXPIRATION,
+                    payload={'scope': scope, 'aud': config.ENV.ISSUER_ADDRESS},
+                    headers={'kid': current_key['kid']},
+                )
+                self.write({
+                    'access_token': access_token,
+                    'token_type': 'bearer',
+                    'expires_in': config.ENV.ACCESS_TOKEN_EXPIRATION,
+                })
+                return
+
             case 'urn:ietf:params:oauth:grant-type:device_code':
                 device_code = self.get_body_argument('device_code', '')
                 if not device_code:
@@ -446,6 +471,56 @@ class Token(DisableXSRF, BaseHandler):
                 if not ret['username']:
                     raise OAuthError(400, error='invalid_grant', description='invalid IdP token')
                 username = ret['username']
+
+            case 'urn:ietf:params:oauth:grant-type:token-exchange':
+                resource = self.get_body_argument('resource', '')
+                if resource:
+                    raise OAuthError(400, error='invalid_request', description='resource is not supported')
+
+                audience = self.get_body_argument('audience', '')
+                scope = self.get_body_argument('scope', '')
+                requested_token_type = self.get_body_argument('requested_token_type', '')
+                requested_subject = self.get_body_argument('requested_subject', '')
+                if requested_subject and not client.get('impersonation'):
+                    logger.info("here!")
+                    raise OAuthError(400, error='invalid_request', description='cannot impersonate')
+
+                subject_token = self.get_body_argument('subject_token', '')
+                if not subject_token:
+                    raise OAuthError(400, error='invalid_request', description='subject_token is required')
+
+                subject_token_type = self.get_body_argument('subject_token_type', '')
+                if not subject_token_type:
+                    raise OAuthError(400, error='invalid_request', description='subject_token_type is required')
+                if subject_token_type != 'urn:ietf:params:oauth:token-type:access_token':
+                    raise OAuthError(400, error='invalid_request', description='subject_token_type must be access token')
+
+                # validate subject token
+                all_keys = await self.state.get_jwks()
+                logger.debug('all_keys: %r', all_keys)
+                keys = {
+                    k.key_id: k.key for k in jwt.PyJWKSet.from_dict(all_keys).keys
+                }
+                try:
+                    auth = OpenIDAuth('', provider_info={'jwks_uri': ''}, public_keys=keys, algorithms=config.DEFAULT_KEY_ALGORITHMS)
+                    data = auth.validate(subject_token)
+                except Exception:
+                    logger.info('error validating subject token', exc_info=True)
+                    raise OAuthError(400, error='invalid_request', description='subject_token is invalid')
+            
+                if data['sub'] != client_id:
+                    raise OAuthError(400, error='invalid_request', description='subject_token must be from a client credentials request with the same client')
+
+                extra_return_fields['issued_token_type'] = 'urn:ietf:params:oauth:token-type:refresh_token'
+
+                if requested_subject:
+                    username = requested_subject
+                else:
+                    # get username from subject_token
+                    username = data['sub']
+                
+                if audience and audience != client_id:
+                    raise OAuthError(400, error='invalid_request', description='audience of a different client is not supported')
 
             case _:
                 raise OAuthError(400, error='unsupported_grant_type')
@@ -486,6 +561,7 @@ class Token(DisableXSRF, BaseHandler):
             payload={
                 'jti': uuid.uuid4().hex,
                 'aud': config.ENV.ISSUER_ADDRESS,
+                'azp': client_id,
                 config.ENV.IDP_USERNAME_CLAIM: username,
                 'idp_username': username,
                 'scope': scope,
