@@ -2,6 +2,17 @@
 
 
 
+## v0.3.0 (2025-08-14)
+
+### [minor]
+
+* [minor] add client credentials and token exchange (#12)
+
+* add client credentials and token exchange
+
+* fix flake8 ([`9a96b64`](https://github.com/WIPACrepo/scitoken-issuer/commit/9a96b64b7058562597f04857a4ebb14cad307351))
+
+
 ## v0.2.0 (2025-07-24)
 
 ### [minor]
