@@ -354,7 +354,7 @@ class Token(DisableXSRF, BaseHandler):
 
         client = await self.state.get_client(client_id)
         if client.get('client_secret', '') != client_secret:
-            raise OAuthError(400, error='invalid_client', description='missing client_id or client_secret')
+            raise OAuthError(400, error='invalid_client', description='invalid client_id or client_secret')
 
         code_challenge = self.get_body_argument('code_challenge', '')
         if code_challenge:
@@ -568,13 +568,16 @@ class Token(DisableXSRF, BaseHandler):
             },
             headers={'kid': current_key['kid']},
         )
-        self.write({
+        ret = {
             'access_token': access_token,
             'token_type': 'Bearer',
             'expires_in': config.ENV.ACCESS_TOKEN_EXPIRATION,
             'refresh_token': refresh_token,
             'scope': scope,
-        })
+        }
+        if extra_return_fields:
+            ret.update(extra_return_fields)
+        self.write(ret)
 
 
 class Authorize(BaseHandler):
