@@ -2,6 +2,13 @@
 
 
 
+## v0.3.1 (2025-08-14)
+
+###  
+
+* fix adding extra fields to return data (#13) ([`4a93bb1`](https://github.com/WIPACrepo/scitoken-issuer/commit/4a93bb1238b9927261699c08fa312383e02b6c56))
+
+
 ## v0.3.0 (2025-08-14)
 
 ### [minor]
