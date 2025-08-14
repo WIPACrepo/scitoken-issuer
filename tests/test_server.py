@@ -597,6 +597,7 @@ async def test_token_exchange(server, storage):
                         ret = r.json()
                         assert 'access_token' in ret
                         assert 'refresh_token' in ret
+                        assert 'issued_token_type' in ret
                         return client.auth.validate(ret['access_token'])
 
                 match user:
