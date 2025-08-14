@@ -479,7 +479,7 @@ class Token(DisableXSRF, BaseHandler):
 
                 audience = self.get_body_argument('audience', '')
                 scope = self.get_body_argument('scope', '')
-                requested_token_type = self.get_body_argument('requested_token_type', '')
+                _ = self.get_body_argument('requested_token_type', '')
                 requested_subject = self.get_body_argument('requested_subject', '')
                 if requested_subject and not client.get('impersonation'):
                     logger.info("here!")

@@ -2,7 +2,6 @@ import dataclasses as dc
 import json
 import logging
 import secrets
-from typing import Any
 
 from wipac_dev_tools import from_environment_as_dataclass
 
