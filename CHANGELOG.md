@@ -2,6 +2,13 @@
 
 
 
+## v0.3.3 (2025-08-19)
+
+###  
+
+* add some more logging (#14) ([`63d47c2`](https://github.com/WIPACrepo/scitoken-issuer/commit/63d47c2d769b938cf7d2d960c0b4caa2d7a54bf8))
+
+
 ## v0.3.2 (2025-08-14)
 
 ###  
