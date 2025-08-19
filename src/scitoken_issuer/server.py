@@ -482,7 +482,6 @@ class Token(DisableXSRF, BaseHandler):
                 _ = self.get_body_argument('requested_token_type', '')
                 requested_subject = self.get_body_argument('requested_subject', '')
                 if requested_subject and not client.get('impersonation'):
-                    logger.info("here!")
                     raise OAuthError(400, error='invalid_request', description='cannot impersonate')
 
                 subject_token = self.get_body_argument('subject_token', '')
@@ -514,6 +513,7 @@ class Token(DisableXSRF, BaseHandler):
                 extra_return_fields['issued_token_type'] = 'urn:ietf:params:oauth:token-type:refresh_token'
 
                 if requested_subject:
+                    logger.info("token-exchange: impersonating as %s", requested_subject)
                     username = requested_subject
                 else:
                     # get username from subject_token
@@ -526,6 +526,7 @@ class Token(DisableXSRF, BaseHandler):
                 raise OAuthError(400, error='unsupported_grant_type')
 
         # check scopes
+        logging.info('process scopes for user %s: %r', username, scope)
         scope = self._process_scopes(username, scope)
         access_scope = ' '.join(s for s in scope.split() if 'storage' in s)
         logging.info('create token for user %s, refresh scope %r, access scope %r', username, scope, access_scope)
