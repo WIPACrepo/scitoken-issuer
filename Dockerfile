@@ -17,10 +17,10 @@ USER app
 
 ENV VIRTUAL_ENV=/app/venv
 
-RUN python3.13 -m venv $VIRTUAL_ENV
+RUN python3 -m venv $VIRTUAL_ENV
 
 ENV PATH="$VIRTUAL_ENV/bin:$PATH"
 
-RUN --mount=source=.git,target=.git,type=bind pip install -e .
+RUN --mount=type=bind,source=.git,target=.git,ro pip install --no-clean .
 
 CMD ["python", "-m", "scitoken_issuer"]

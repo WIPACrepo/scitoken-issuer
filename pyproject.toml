@@ -3,7 +3,7 @@ requires = ["setuptools>=64", "setuptools_scm[toml]>=3.4"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "scitoken-issuer"
+name = "scitoken_issuer"
 description = "WIPAC - SciToken Issuer"
 readme = "README.md"
 authors = [{name = "WIPAC Developers", email = "developers@icecube.wisc.edu"}]
@@ -55,7 +55,6 @@ license-files = ["LICENSE"]
 
 [tool.setuptools.packages.find]
 where = ["src"]
-include = ["oauth2*"]
 namespaces = true
 
 [tool.setuptools_scm]
