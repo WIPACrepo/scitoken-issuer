@@ -419,9 +419,10 @@ class Token(DisableXSRF, BaseHandler):
                         raise OAuthError(400, error='invalid_request', description='invalid scope')
 
                 # check against IdP
-                username = await self.get_idp_username(username)
-                if not username:
-                    raise OAuthError(400, error='invalid_grant', description='invalid IdP token')
+                if not client.get('impersonation'):
+                    username = await self.get_idp_username(username)
+                    if not username:
+                        raise OAuthError(400, error='invalid_grant', description='invalid IdP token')
 
             case 'client_credentials':
                 scope = self.get_body_argument('scope', '')
