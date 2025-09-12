@@ -2,7 +2,7 @@ from contextlib import contextmanager
 import dataclasses
 import logging
 
-from wipac_dev_tools.enviro_tools import deconstruct_typehint, _typecast_for_dataclass
+from wipac_dev_tools.enviro_tools import TypeHintDeconstructor, TypeCaster
 
 from scitoken_issuer import config
 
@@ -21,12 +21,12 @@ def env(**kwargs):
         
         env_val = kwargs[field.name]
         if isinstance(env_val, str):
-            typ, arg_typs = deconstruct_typehint(field)
+            typ, arg_typs = TypeHintDeconstructor.deconstruct_from_dc_field(field)
             
             # cast value to type
             try:
-                kwargs[field.name] = _typecast_for_dataclass(
-                    env_val, typ, arg_typs, None, '='
+                kwargs[field.name] = TypeCaster(dict_kv_joiner='=').typecast(
+                    env_val, typ, arg_typs, None
                 )
             except ValueError as e:
                 raise ValueError(
