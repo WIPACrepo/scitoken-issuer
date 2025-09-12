@@ -2,6 +2,31 @@
 
 
 
+## v0.3.4 (2025-09-12)
+
+###  
+
+* fix broken refreshes after impersonation (#16)
+
+* test for broken refreshes after impersonation
+
+* fix with update to wipac_dev_tools
+
+* fix non-optional arg
+
+* fix extra arg
+
+* back out new code to see if test fails
+
+* add in new code to fix bug ([`1b44c5e`](https://github.com/WIPACrepo/scitoken-issuer/commit/1b44c5ea7470269297df93f5eb42f3635f15a3e7))
+
+* [no-bump] update dockerfile build to better syntax (#15)
+
+* update dockerfile build to better syntax
+
+* fix cleanup of tmp files ([`887bc7b`](https://github.com/WIPACrepo/scitoken-issuer/commit/887bc7b55faea46b33c90a28fd76af3785937f45))
+
+
 ## v0.3.3 (2025-08-19)
 
 ###  
