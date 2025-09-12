@@ -16,7 +16,7 @@ from krs.token import get_token
 from krs.users import create_user, delete_user, set_user_password
 import pytest
 import pytest_asyncio
-from rest_tools.client import RestClient, ClientCredentialsAuth, DeviceGrantAuth
+from rest_tools.client import RestClient, ClientCredentialsAuth, DeviceGrantAuth, OpenIDRestClient
 from rest_tools.utils import OpenIDAuth
 import requests
 from requests.auth import HTTPBasicAuth
@@ -598,20 +598,27 @@ async def test_token_exchange(server, storage):
                         assert 'access_token' in ret
                         assert 'refresh_token' in ret
                         assert 'issued_token_type' in ret
-                        return client.auth.validate(ret['access_token'])
+                        return client.auth.validate(ret['access_token']), ret['refresh_token']
+
+                async def refresh(rt):
+                    rc = OpenIDRestClient('', address, refresh_token=rt, client_id=client_id, client_secret=client_secret, retries=0)
+                    rc.auth.validate(rc._openid_token())
 
                 match user:
                     case 'test1':
-                        data = await common(['storage.modify:/data/ana/project1/sub1'])
+                        data, rt = await common(['storage.modify:/data/ana/project1/sub1'])
                         assert 'storage.modify:/data/ana/project1/sub1' in data['scope']
-                        data = await common(['storage.modify:/data/ana/project3/sub1'])
+                        await refresh(rt)
+                        data, rt = await common(['storage.modify:/data/ana/project3/sub1'])
                         assert 'storage.modify:/data/ana/project3/sub1' in data['scope']
+                        await refresh(rt)
                     case 'test2':
                         with pytest.raises(requests.HTTPError) as e:
                             await common(['storage.modify:/data/ana/project1/sub1'])
                         assert 'invalid scopes' == e.value.response.json()['error_description']
-                        data = await common(['storage.read:/data/ana/project3/sub1'])
+                        data, rt = await common(['storage.read:/data/ana/project3/sub1'])
                         assert 'storage.read:/data/ana/project3/sub1' in data['scope']
+                        await refresh(rt)
                     case 'non':
                         with pytest.raises(requests.HTTPError) as e:
                             await common(['storage.modify:/data/ana/project1/sub1'])
