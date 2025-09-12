@@ -2,6 +2,13 @@
 
 
 
+## v0.3.5 (2025-09-12)
+
+###  
+
+* obfuscate additional config vars (#17) ([`667917b`](https://github.com/WIPACrepo/scitoken-issuer/commit/667917b531f0c7777396bc5826e5b68ddcd445fb))
+
+
 ## v0.3.4 (2025-09-12)
 
 ###  
