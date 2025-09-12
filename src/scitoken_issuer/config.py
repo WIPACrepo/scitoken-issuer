@@ -88,7 +88,10 @@ class EnvConfig:
             object.__setattr__(self, 'COOKIE_SECRET', secrets.token_hex(32))
 
 
-ENV = from_environment_as_dataclass(EnvConfig, collection_sep=',')
+ENV = from_environment_as_dataclass(EnvConfig, collection_sep=',', obfuscate_log_vars=[
+    'STATIC_CLIENTS',
+    'STATIC_IMPERSONATION_CLIENTS',
+])
 
 
 def config_logging():
