@@ -25,7 +25,7 @@ def env(**kwargs):
             
             # cast value to type
             try:
-                kwargs[field.name] = TypeCaster(dict_kv_joiner='=').typecast(
+                kwargs[field.name] = TypeCaster(collection_sep=None, dict_kv_joiner='=').typecast(
                     env_val, typ, arg_typs, None
                 )
             except ValueError as e:
