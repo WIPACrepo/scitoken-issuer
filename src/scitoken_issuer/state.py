@@ -1,3 +1,4 @@
+from dataclasses import dataclass, asdict as dc_asdict, field as dc_field
 import logging
 import time
 from typing import Any, TypedDict
@@ -49,6 +50,19 @@ def check_key_type(key) -> bool:
         return key['jwk']['kty'] == 'OKP'
     raise RuntimeError('Unknown KEY_TYPE')
 
+
+@dataclass
+class Client(config.Client):
+    redirect_uris: list[str] = dc_field(default_factory=list)
+    grant_types: list[str] = dc_field(default_factory=list)
+    response_types: str = 'code'
+    client_name: str = ''
+    client_id_issued_at: int = -1
+    client_secret_expires_at: int = -1
+    static_client: bool = False
+    registration_client_uri: str = ''
+    registration_access_token: str = ''
+    scope: str = 'storage.read storage.create storage.modify'
 
 
 class State:
@@ -105,35 +119,28 @@ class State:
                     await self.db[collection].create_index(name=name, **kwargs)
         logger.info('all indexes created')
 
-        static_clients = config.ENV.STATIC_CLIENTS if config.ENV.STATIC_CLIENTS else {}
-        static_imp_clients = config.ENV.STATIC_IMPERSONATION_CLIENTS if config.ENV.STATIC_IMPERSONATION_CLIENTS else {}
-        static_clients.update(static_imp_clients)
+        static_clients = config.ENV.STATIC_CLIENTS if config.ENV.STATIC_CLIENTS else []
         ret = await self.list_clients()
         existing_client_ids = set()
         for client in ret:
-            if client.get('static_client', False) and client['client_id'] not in static_clients:
-                logger.info('deleting old static client %s', client['client_id'])
-                await self.delete_client(client['client_id'])
+            if client.static_client and client.client_id not in static_clients:
+                logger.info('deleting old static client %s', client.client_id)
+                await self.delete_client(client.client_id)
             else:
-                existing_client_ids.add(client['client_id'])
+                existing_client_ids.add(client.client_id)
         now = int(time.time())
-        for client_id,client_secret in static_clients.items():
-            logger.info('setting up client %s', client_id)
-            data = {
-                'static_client': True,
-                'redirect_uris': ['*'],  # any uri is valid
-                'grant_types': ['authorization_code', 'urn:ietf:params:oauth:grant-type:device_code'],
-                'response_types': 'code',
-                'client_name': client_id,
-                'client_id': client_id,
-                'client_secret': client_secret,
-                'client_id_issued_at': now,
-                'client_secret_expires_at': now + 1000000000000,  # does not expire
-            }
-            if client_id in static_imp_clients:
-                data['impersonation'] = True
-            if client_id in existing_client_ids:
-                await self.update_client(client_id, data)
+        for client in static_clients:
+            logger.info('setting up client %s', client.client_id)
+            data = Client(
+                static_client=True,
+                redirect_uris=['*'],  # any uri is valid
+                grant_types=['authorization_code', 'urn:ietf:params:oauth:grant-type:device_code'],
+                client_id_issued_at=now,
+                client_secret_expires_at=now + 1000000000000,  # does not expire
+                **dc_asdict(client)
+            )
+            if client.client_id in existing_client_ids:
+                await self.update_client(client.client_id, data)
             else:
                 await self.add_client(data)
 
@@ -187,23 +194,25 @@ class State:
         await self.db.keys.delete_many({})
         await self.rotate_jwk()
 
-    async def add_client(self, details: dict[str, Any]):
+    async def add_client(self, details: Client):
         """
         Add a client.
 
         Raises:
             pymongo.errors.DuplicateKeyError: when the client already exists
         """
-        assert 'client_id' in details
-        await self.db.clients.insert_one(details.copy())
+        await self.db.clients.insert_one(dc_asdict(details))
 
-    async def list_clients(self) -> list[dict[str, Any]]:
+    async def list_clients(self) -> list[Client]:
         """
         List all clients.
         """
-        return await self.db.clients.find({}, projection={'_id': False}).to_list(1000000)
+        ret = []
+        async for row in self.db.clients.find({}, projection={'_id': False}):
+            ret.append(Client(**row))
+        return ret
 
-    async def get_client(self, client_id: str) -> dict[str, Any]:
+    async def get_client(self, client_id: str) -> Client:
         """
         Get client details.
 
@@ -213,16 +222,16 @@ class State:
         ret = await self.db.clients.find_one({'client_id': client_id}, projection={'_id': False})
         if ret is None:
             raise KeyError('client_id not found')
-        return ret
+        return Client(**ret)
 
-    async def update_client(self, client_id: str, data: dict[str, Any]):
+    async def update_client(self, client_id: str, data: Client):
         """
         Update client details.
 
         Raises:
             KeyError: If the client is not found.
         """
-        ret = await self.db.clients.find_one_and_update({'client_id': client_id}, {'$set': data})
+        ret = await self.db.clients.find_one_and_update({'client_id': client_id}, {'$set':  dc_asdict(data)})
         if ret is None:
             raise KeyError('client_id not found')
 

@@ -14,10 +14,12 @@ def test_custom_claims():
 
 
 def test_static_clients():
-    with env(STATIC_CLIENTS='{"foo":"bar"}'):
-        assert scitoken_issuer.config.ENV.STATIC_CLIENTS == {"foo": "bar"}
+    c = [scitoken_issuer.config.Client('foo', 'bar')]
+    with env(STATIC_CLIENTS='[{"client_id":"foo","client_secret":"bar"}]'):
+        assert scitoken_issuer.config.ENV.STATIC_CLIENTS == c
 
 
 def test_static_impersonation_clients():
-    with env(STATIC_IMPERSONATION_CLIENTS='{"foo":"bar"}'):
-        assert scitoken_issuer.config.ENV.STATIC_IMPERSONATION_CLIENTS == {"foo": "bar"}
+    c = [scitoken_issuer.config.Client('foo', 'bar', impersonation=True)]
+    with env(STATIC_CLIENTS='[{"client_id":"foo","client_secret":"bar","impersonation":true}]'):
+        assert scitoken_issuer.config.ENV.STATIC_CLIENTS == c

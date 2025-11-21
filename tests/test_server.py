@@ -2,6 +2,7 @@ import asyncio
 from contextlib import asynccontextmanager
 from html import unescape
 from functools import partial
+import json
 import logging
 import threading
 import multiprocessing
@@ -481,7 +482,7 @@ async def test_static_client(server, storage, monkeypatch):
     client_id = 'foo'
     client_secret = 'bar'
 
-    with env(STATIC_CLIENTS=f'{{"{client_id}": "{client_secret}"}}'):
+    with env(STATIC_CLIENTS=json.dumps([{"client_id":client_id,"client_secret":client_secret}])):
         async with server() as address:
             login = Mock(side_effect=do_device_login(user))
             monkeypatch.setattr('rest_tools.client.device_client._print_qrcode', login)
@@ -551,7 +552,7 @@ async def test_client_credentials(server):
     client_id = 'foo'
     client_secret = 'bar'
 
-    with env(STATIC_CLIENTS=f'{{"{client_id}": "{client_secret}"}}'):
+    with env(STATIC_CLIENTS=json.dumps([{"client_id":client_id,"client_secret":client_secret}])):
         async with server() as address:
             client = ClientCredentialsAuth('', address, client_id, client_secret, retries=0)
             token = client.make_access_token()
@@ -568,12 +569,12 @@ async def test_client_credentials(server):
                 client.make_access_token()
 
 
-async def test_token_exchange(server, storage):
+async def test_token_exchange_impersonate(server, storage):
     users, _, _ = storage
     client_id = 'foo'
     client_secret = 'bar'
 
-    with env(STATIC_IMPERSONATION_CLIENTS=f'{{"{client_id}": "{client_secret}"}}'):
+    with env(STATIC_CLIENTS=json.dumps([{"client_id":client_id,"client_secret":client_secret,"impersonation":True}])):
         async with server() as address:
             client = ClientCredentialsAuth('', address, client_id, client_secret, retries=0)
             token = client.make_access_token()
@@ -586,8 +587,6 @@ async def test_token_exchange(server, storage):
                             'client_id': client_id,
                             'grant_type': 'urn:ietf:params:oauth:grant-type:token-exchange',
                             'scope': ' '.join(scopes),
-                            'subject_token': token,
-                            'subject_token_type': 'urn:ietf:params:oauth:token-type:access_token',
                             'requested_token_type': 'urn:ietf:params:oauth:token-type:refresh_token',
                             'requested_subject': user,
                             'audience': client_id,
@@ -628,12 +627,40 @@ async def test_token_exchange(server, storage):
                         assert 'invalid scopes' == e.value.response.json()['error_description']
 
 
-async def test_token_exchange_bad_client(server, storage):
+async def test_token_exchange_impersonate_bad_client(server, storage):
     users, _, _ = storage
     client_id = 'foo'
     client_secret = 'bar'
 
-    with env(STATIC_CLIENTS=f'{{"{client_id}": "{client_secret}"}}'):
+    with env(STATIC_CLIENTS=json.dumps([{"client_id":client_id,"client_secret":client_secret}])):
+        async with server() as address:
+            client = ClientCredentialsAuth('', address, client_id, client_secret, retries=0)
+            token = client.make_access_token()
+            scope = 'storage.read:/data/ana/project1/sub1'
+
+            for user in users:
+                with requests.Session() as session:
+                    # copied from https://www.keycloak.org/securing-apps/token-exchange#_impersonation
+                    args = {
+                        'client_id': client_id,
+                        'grant_type': 'urn:ietf:params:oauth:grant-type:token-exchange',
+                        'scope': scope,
+                        'requested_token_type': 'urn:ietf:params:oauth:token-type:refresh_token',
+                        'requested_subject': user,
+                        'audience': client_id,
+                    }
+                    r = session.post(f'{address}/token', data=args, auth=(client_id, client_secret))
+                    with pytest.raises(requests.HTTPError) as e:
+                        r.raise_for_status()
+                    assert 'cannot impersonate' == e.value.response.json()['error_description']
+
+
+async def test_token_exchange_impersonate_bad_request(server, storage):
+    users, _, _ = storage
+    client_id = 'foo'
+    client_secret = 'bar'
+
+    with env(STATIC_CLIENTS=json.dumps([{"client_id":client_id,"client_secret":client_secret,"impersonation":True}])):
         async with server() as address:
             client = ClientCredentialsAuth('', address, client_id, client_secret, retries=0)
             token = client.make_access_token()
@@ -655,4 +682,102 @@ async def test_token_exchange_bad_client(server, storage):
                     r = session.post(f'{address}/token', data=args, auth=(client_id, client_secret))
                     with pytest.raises(requests.HTTPError) as e:
                         r.raise_for_status()
-                    assert 'cannot impersonate' == e.value.response.json()['error_description']
+                    assert 'subject_token (user-based impersonation) is not allowed' == e.value.response.json()['error_description']
+
+                    # copied from https://www.keycloak.org/securing-apps/token-exchange#_impersonation
+                    args = {
+                        'client_id': client_id,
+                        'grant_type': 'urn:ietf:params:oauth:grant-type:token-exchange',
+                        'scope': scope,
+                        'requested_token_type': 'urn:ietf:params:oauth:token-type:refresh_token',
+                        'requested_subject': user,
+                        'audience': 'blah',
+                    }
+                    r = session.post(f'{address}/token', data=args, auth=(client_id, client_secret))
+                    with pytest.raises(requests.HTTPError) as e:
+                        r.raise_for_status()
+                    assert 'audience of a different client is not supported' == e.value.response.json()['error_description']
+
+
+async def test_token_exchange_client(server, storage):
+    users, _, _ = storage
+    client_id = 'foo'
+    client_secret = 'bar'
+    client_id2 = 'foo2'
+    client_secret2 = 'bar2'
+
+    with env(STATIC_CLIENTS=json.dumps([
+            {"client_id":client_id,"client_secret":client_secret,"impersonation":True,"client_exchange":[client_id2]},
+            {"client_id":client_id2,"client_secret":client_secret2,"impersonation":True}
+        ])):
+        async with server() as address:
+            client = ClientCredentialsAuth('', address, client_id, client_secret, retries=0)
+
+            for user in users:
+                async def common(scopes):
+                    with requests.Session() as session:
+                        # make user token via impersonation
+                        args = {
+                            'client_id': client_id,
+                            'grant_type': 'urn:ietf:params:oauth:grant-type:token-exchange',
+                            'scope': ' '.join(scopes),
+                            'requested_token_type': 'urn:ietf:params:oauth:token-type:refresh_token',
+                            'requested_subject': user,
+                            'audience': client_id,
+                        }
+                        r = session.post(f'{address}/token', data=args, auth=(client_id, client_secret))
+                        r.raise_for_status()
+                        ret = r.json()
+                        assert 'access_token' in ret
+                        token = ret['access_token']
+                        logging.info('token: %r', client.auth.validate(token))
+
+                        # exchange for tokens valid on client_id2
+                        args = {
+                            'client_id': client_id,
+                            'grant_type': 'urn:ietf:params:oauth:grant-type:token-exchange',
+                            'scope': ' '.join(scopes),
+                            'requested_token_type': 'urn:ietf:params:oauth:token-type:refresh_token',
+                            'subject_token': token,
+                            'subject_token_type': 'urn:ietf:params:oauth:token-type:access_token',
+                            'audience': client_id2,
+                        }
+                        r = session.post(f'{address}/token', data=args, auth=(client_id, client_secret))
+                        try:
+                            r.raise_for_status()
+                        except:
+                            logging.info('error: %s', r.text)
+                            raise
+                        ret = r.json()
+                        assert 'access_token' in ret
+                        assert 'refresh_token' in ret
+                        assert 'issued_token_type' in ret
+                        logging.info('new refresh: %r', client.auth.validate(ret['refresh_token']))
+                        return client.auth.validate(ret['access_token']), ret['refresh_token']
+
+                async def refresh(rt):
+                    rc = OpenIDRestClient('', address, refresh_token=rt, client_id=client_id2, client_secret=client_secret2, retries=0)
+                    rc.auth.validate(rc._openid_token())
+
+                match user:
+                    case 'test1':
+                        data, rt = await common(['storage.modify:/data/ana/project1/sub1'])
+                        assert 'storage.modify:/data/ana/project1/sub1' in data['scope']
+                        await refresh(rt)
+                        data, rt = await common(['storage.modify:/data/ana/project3/sub1'])
+                        assert 'storage.modify:/data/ana/project3/sub1' in data['scope']
+                        await refresh(rt)
+                    case 'test2':
+                        with pytest.raises(requests.HTTPError) as e:
+                            await common(['storage.modify:/data/ana/project1/sub1'])
+                        assert 'invalid scopes' == e.value.response.json()['error_description']
+                        data, rt = await common(['storage.read:/data/ana/project3/sub1'])
+                        assert 'storage.read:/data/ana/project3/sub1' in data['scope']
+                        await refresh(rt)
+                    case 'non':
+                        with pytest.raises(requests.HTTPError) as e:
+                            await common(['storage.modify:/data/ana/project1/sub1'])
+                        assert 'invalid scopes' == e.value.response.json()['error_description']
+                        with pytest.raises(requests.HTTPError) as e:
+                            await common(['storage.modify:/data/ana/project3/sub1'])
+                        assert 'invalid scopes' == e.value.response.json()['error_description']

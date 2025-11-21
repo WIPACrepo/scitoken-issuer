@@ -27,6 +27,23 @@ class ConfigJson(dict):
         self.update(json.loads(data))
 
 
+@dc.dataclass
+class Client:
+    client_id: str
+    client_secret: str
+    impersonation: bool = False
+    client_exchange: list = dc.field(default_factory=list)  
+
+
+class ClientList(list[Client]):
+    def __init__(self, data: str = '[]'):
+        d = json.loads(data)
+        if not isinstance(d, list):
+            raise RuntimeError('json data is not a list')
+        for entry in d:
+            self.append(Client(**entry))
+
+
 @dc.dataclass(frozen=True)
 class EnvConfig:
     IDP_ADDRESS: str = ''
@@ -45,8 +62,7 @@ class EnvConfig:
     AUTHORIZATION_CODE_EXPIRATION: int = 600  # seconds
     CLIENT_REGISTRATION_EXPIRATION: int = 86400  # seconds
 
-    STATIC_CLIENTS: ConfigJson | None = None  # dict of client_id: client_secret
-    STATIC_IMPERSONATION_CLIENTS: ConfigJson | None = None
+    STATIC_CLIENTS: ClientList | None = None  # list of Clients
 
     POSIX_PATH: str = '/'
     USE_LDAP: bool = False
@@ -90,7 +106,6 @@ class EnvConfig:
 
 ENV = from_environment_as_dataclass(EnvConfig, collection_sep=',', obfuscate_log_vars=[
     'STATIC_CLIENTS',
-    'STATIC_IMPERSONATION_CLIENTS',
 ])
 
 
