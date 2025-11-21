@@ -73,7 +73,6 @@ jobs:
           mode: PACKAGING
           python_min: 3.13
           python_max: 3.14
-          package_dirs: src/scitoken_issuer
           auto_mypy_option: True
 
   py-dependencies:
