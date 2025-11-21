@@ -26,7 +26,6 @@ from rest_tools.server import (
 )
 from rest_tools.utils.auth import Auth, OpenIDAuth
 
-from . import __version__ as version
 from . import config
 from .state import Client, State
 from .group_validation import Validator
@@ -993,7 +992,7 @@ class Server:
     def __init__(self):
         handler_config = {
             'debug': config.ENV.DEBUG,
-            'server_header': f'SciToken Issuer {version}',
+            'server_header': f'SciToken Issuer',
             'auth': {
                 'openid_url': config.ENV.IDP_ADDRESS,
             }
