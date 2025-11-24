@@ -37,7 +37,9 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: ${{ matrix.py3 }}
-      - uses: astral-sh/ruff-action@v3
+      - uses: WIPACrepo/wipac-dev-flake8-action@v1.3
+        with:
+          max-complexity: 28  # ideal is ~10-15
 
   mypy:
     needs: [ py-versions ]
@@ -56,6 +58,7 @@ jobs:
         with:
           python-version: ${{ matrix.py3 }}
       - uses: WIPACrepo/wipac-dev-mypy-action@v2.0
+
 
   ############################################################################
   # PACKAGING
