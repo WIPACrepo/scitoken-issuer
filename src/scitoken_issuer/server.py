@@ -2,10 +2,9 @@
 # ignore complaints about get/set cookie and the base handler
 
 from collections.abc import Callable
-#import importlib.resources
+from dataclasses import asdict as dc_asdict
 import json
 import logging
-#import os
 import secrets
 import time
 from typing import Any
@@ -27,9 +26,8 @@ from rest_tools.server import (
 )
 from rest_tools.utils.auth import Auth, OpenIDAuth
 
-from . import __version__ as version
 from . import config
-from .state import State
+from .state import Client, State
 from .group_validation import Validator
 from .utils import basic_decode
 
@@ -51,7 +49,6 @@ class TokenMixin:
     get_secure_cookie: Callable[[str], str]
     set_secure_cookie: Callable[..., None]
     clear_cookie: Callable[[str], None]
-
 
     async def get_idp_tokens(self, username: str) -> dict[str, Any]:
         """
@@ -220,12 +217,13 @@ class BaseHandler(TokenMixin, RestHandler):
 
     def write_error(self, status_code=500, **kwargs):
         """Write out custom error json."""
-        data : dict[str, str|int] = {
+        data : dict[str, str | int] = {
             'code': status_code,
         }
         if "exc_info" in kwargs:
             exception = kwargs["exc_info"][1]
             if isinstance(exception, OAuthError):
+                logger.info('OAuthError(%s): %s', exception.error, exception.description)
                 data['error'] = exception.error
                 data['error_description'] = exception.description
         self.write(data)
@@ -309,17 +307,17 @@ class WellKnown(BaseHandler):
                 'refresh_token',
                 'urn:ietf:params:oauth:grant-type:device_code',
             ],
-            #'code_challenge_methods_supported': [
-            #    'plain',
-            #    'S256',
-            #],
+            # 'code_challenge_methods_supported': [
+            #     'plain',
+            #     'S256',
+            # ],
             'subject_types_supported': ['public'],
             'token_endpoint_auth_methods_supported': ['client_secret_basic', 'client_secret_post'],
             'token_endpoint_auth_signing_alg_values_supported': config.DEFAULT_KEY_ALGORITHMS,
             'userinfo_signing_alg_values_supported': config.DEFAULT_KEY_ALGORITHMS,
             'id_token_signing_alg_values_supported': config.DEFAULT_KEY_ALGORITHMS,
-            #'request_object_signing_alg_values_supported':
-            #    ['none'],
+            # 'request_object_signing_alg_values_supported':
+            #     ['none'],
             'claims_supported': [
                 'aud',
                 'sub',
@@ -344,7 +342,7 @@ class Token(DisableXSRF, BaseHandler):
     """
     Handle OAuth2 token requests.
     """
-    async def post(self):
+    async def post(self):  # noqa: MFL000
         logging.info('token!')
         # check client id and secret
         client_id = self.current_user
@@ -353,7 +351,7 @@ class Token(DisableXSRF, BaseHandler):
             raise OAuthError(401, error='invalid_client', description='missing client_id or client_secret')
 
         client = await self.state.get_client(client_id)
-        if client.get('client_secret', '') != client_secret:
+        if client.client_secret != client_secret:
             raise OAuthError(400, error='invalid_client', description='invalid client_id or client_secret')
 
         code_challenge = self.get_body_argument('code_challenge', '')
@@ -371,7 +369,7 @@ class Token(DisableXSRF, BaseHandler):
                 auth_code = self.get_body_argument('code', '')
                 if not auth_code:
                     raise OAuthError(400, error='invalid_request', description='missing code')
-                
+
                 try:
                     ret = await self.state.get_auth_code(auth_code)
                 except KeyError:
@@ -386,7 +384,7 @@ class Token(DisableXSRF, BaseHandler):
                     if not redirect or redirect != ret['redirect']:
                         raise OAuthError(400, error='invalid_request', description='invalid redirect')
 
-                # auth code must only be used once                
+                # auth code must only be used once
                 await self.state.delete_auth_code(auth_code)
 
             case 'refresh_token':
@@ -408,7 +406,12 @@ class Token(DisableXSRF, BaseHandler):
                 except Exception:
                     logger.info('error validating refresh token', exc_info=True)
                     raise OAuthError(400, error='invalid_grant', description='invalid refresh token')
-            
+
+                # check azp
+                azp = data.get('azp', None)
+                if not azp or azp != client_id:
+                    raise OAuthError(400, error='invalid_request', description='invalid azp')
+
                 # the scope body arg is optional, so fall back to the refresh scopes if necessary
                 if not scope:
                     scope = data.get('scope', '')
@@ -419,7 +422,7 @@ class Token(DisableXSRF, BaseHandler):
                         raise OAuthError(400, error='invalid_request', description='invalid scope')
 
                 # check against IdP
-                if not client.get('impersonation'):
+                if not client.impersonation:
                     username = await self.get_idp_username(username)
                     if not username:
                         raise OAuthError(400, error='invalid_grant', description='invalid IdP token')
@@ -450,7 +453,7 @@ class Token(DisableXSRF, BaseHandler):
                 device_code = self.get_body_argument('device_code', '')
                 if not device_code:
                     raise OAuthError(400, error='invalid_request', description='missing device_code')
-                
+
                 # validate device code
                 try:
                     ret = await self.state.get_device_code(device_code)
@@ -474,54 +477,88 @@ class Token(DisableXSRF, BaseHandler):
                 username = ret['username']
 
             case 'urn:ietf:params:oauth:grant-type:token-exchange':
+                """
+                Lots of different token exchanges defined by RFC8693 and extensions.
+
+                We support these:
+                * client exchange - getting a token for a different client
+                  * the subject_token must be valid on the current client
+                  * the audience should be a client_id for the new token(s)
+                  * can specify scopes to downscope on the same client_id
+                  * scopes should be a subset of scopes in subject_token
+                  * requires current client to have permission to exchange with new client
+                * impersonation - getting a token for the current client with a specified username
+                  * this is an extension to the RFC, based on Keycloak's support
+                  * requested_subject is the new username to impersonate
+                  * scopes is the scopes to request for the new token (unrestricted)
+                  * audience must be unspecified or match the current client_id
+                  * currently restricted to client impersonation, without subject_token
+                """
                 resource = self.get_body_argument('resource', '')
                 if resource:
                     raise OAuthError(400, error='invalid_request', description='resource is not supported')
 
                 audience = self.get_body_argument('audience', '')
                 scope = self.get_body_argument('scope', '')
-                _ = self.get_body_argument('requested_token_type', '')
+                # requested_token_type = self.get_body_argument('requested_token_type', '')
                 requested_subject = self.get_body_argument('requested_subject', '')
-                if requested_subject and not client.get('impersonation'):
-                    raise OAuthError(400, error='invalid_request', description='cannot impersonate')
-
                 subject_token = self.get_body_argument('subject_token', '')
-                if not subject_token:
-                    raise OAuthError(400, error='invalid_request', description='subject_token is required')
-
                 subject_token_type = self.get_body_argument('subject_token_type', '')
-                if not subject_token_type:
-                    raise OAuthError(400, error='invalid_request', description='subject_token_type is required')
-                if subject_token_type != 'urn:ietf:params:oauth:token-type:access_token':
-                    raise OAuthError(400, error='invalid_request', description='subject_token_type must be access token')
-
-                # validate subject token
-                all_keys = await self.state.get_jwks()
-                logger.debug('all_keys: %r', all_keys)
-                keys = {
-                    k.key_id: k.key for k in jwt.PyJWKSet.from_dict(all_keys).keys
-                }
-                try:
-                    auth = OpenIDAuth('', provider_info={'jwks_uri': ''}, public_keys=keys, algorithms=config.DEFAULT_KEY_ALGORITHMS)
-                    data = auth.validate(subject_token)
-                except Exception:
-                    logger.info('error validating subject token', exc_info=True)
-                    raise OAuthError(400, error='invalid_request', description='subject_token is invalid')
-            
-                if data['sub'] != client_id:
-                    raise OAuthError(400, error='invalid_request', description='subject_token must be from a client credentials request with the same client')
-
-                extra_return_fields['issued_token_type'] = 'urn:ietf:params:oauth:token-type:refresh_token'
 
                 if requested_subject:
-                    logger.info("token-exchange: impersonating as %s", requested_subject)
+                    # try to do impersonation workflow
+                    logger.info('token-exchange: impersonating as %s', requested_subject)
                     username = requested_subject
+
+                    if subject_token or subject_token_type:
+                        raise OAuthError(400, error='invalid_request', description='subject_token (user-based impersonation) is not allowed')
+                    if not client.impersonation:
+                        raise OAuthError(400, error='invalid_request', description='cannot impersonate')
+                    if audience and audience != client_id:
+                        raise OAuthError(400, error='invalid_target', description='audience of a different client is not supported')
+
                 else:
+                    # try to do client exchange workflow
+                    logger.info('token-exchange: client exchange workflow')
+                    if not subject_token:
+                        raise OAuthError(400, error='invalid_request', description='subject_token is required')
+                    if not subject_token_type:
+                        raise OAuthError(400, error='invalid_request', description='subject_token_type is required')
+                    if subject_token_type != 'urn:ietf:params:oauth:token-type:access_token':
+                        raise OAuthError(400, error='invalid_request', description='subject_token_type must be access token')
+                    if audience:
+                        # audience must be another valid client
+                        try:
+                            new_client = await self.state.get_client(audience)
+                        except KeyError:
+                            raise OAuthError(400, error='invalid_target', description='invalid audience: must be a valid client_id')
+
+                        # override the client_id when writing the token(s)
+                        client_id = new_client.client_id
+
+                    # validate subject token
+                    all_keys = await self.state.get_jwks()
+                    logger.debug('all_keys: %r', all_keys)
+                    keys = {
+                        k.key_id: k.key for k in jwt.PyJWKSet.from_dict(all_keys).keys
+                    }
+                    try:
+                        auth = OpenIDAuth('', provider_info={'jwks_uri': ''}, public_keys=keys, algorithms=config.DEFAULT_KEY_ALGORITHMS)
+                        data = auth.validate(subject_token)
+                    except Exception:
+                        logger.info('error validating subject token', exc_info=True)
+                        raise OAuthError(400, error='invalid_request', description='subject_token is invalid')
+
+                    if not set(scope.split()).issubset(set(data['scope'].split())):
+                        logger.info('requested scope: %s', scope)
+                        logger.info('subject scope: %s', data['scope'])
+                        raise OAuthError(400, error='invalid_request', description='invalid scope: must be a subset of existing scopes')
+
+                    logger.info('token-exchange: user remains %s', data['sub'])
                     # get username from subject_token
                     username = data['sub']
-                
-                if audience and audience != client_id:
-                    raise OAuthError(400, error='invalid_request', description='audience of a different client is not supported')
+
+                extra_return_fields['issued_token_type'] = 'urn:ietf:params:oauth:token-type:refresh_token'
 
             case _:
                 raise OAuthError(400, error='unsupported_grant_type')
@@ -603,7 +640,7 @@ class Authorize(BaseHandler):
             raise OAuthError(400, error='unsupported_response_type')
 
         redirect = self.get_query_argument('redirect_uri', None)
-        if not client['redirect_uris'] and not redirect:
+        if not client.redirect_uris and not redirect:
             raise OAuthError(400, error='invalid_request', description='redirect_uris is required')
 
         state = {
@@ -647,7 +684,7 @@ class AuthorizeComplete(BaseHandler):
             if not client:
                 raise OAuthError(401, error='invalid_client', description='invalid client_id')
             try:
-                uri = client['redirection_uris'][0]
+                uri = client.redirect_uris[0]
             except Exception:
                 raise OAuthError(401, error='invalid_request', description='unknown redirect_uri')
 
@@ -727,9 +764,9 @@ class DeviceCode(DisableXSRF, BaseHandler):
         client_secret = self.client_secret
         if not client_id or not client_secret:
             raise OAuthError(401, error='invalid_client', description='missing client_id or client_secret')
-    
+
         client = await self.state.get_client(client_id)
-        if client.get('client_secret', '') != client_secret:
+        if client.client_secret != client_secret:
             raise OAuthError(400, error='invalid_client', description='missing client_id or client_secret')
 
         scope = self.get_body_argument('scope', '')
@@ -765,19 +802,19 @@ class DeviceCodeVerify(BaseHandler):
         if not user_code:
             # user enters code in browser
             self.write(
-            """
-            <html>
-            <head></head>
-            <body>
-            <h1>SciToken Issuer</h1>
-            <h2>Device code authorization</h2>
-            <form>
-            <label>Enter user code:</label>
-            <input type="text" name="user_code" />
-            </form>
-            </body>
-            </html>
-            """)
+                """
+                <html>
+                <head></head>
+                <body>
+                <h1>SciToken Issuer</h1>
+                <h2>Device code authorization</h2>
+                <form>
+                <label>Enter user code:</label>
+                <input type="text" name="user_code" />
+                </form>
+                </body>
+                </html>
+                """)
 
         else:
             # user has entered the code
@@ -819,16 +856,16 @@ class DeviceCodeComplete(BaseHandler):
         await self.state.update_device_code(data['device_code'], 'verified', username=username)
 
         self.write(
-        """
-        <html>
-        <head></head>
-        <body>
-        <h1>SciToken Issuer</h1>
-        <h2>Device code authorization complete!</h2>
-        <p>You may now close this page.</p>
-        </body>
-        </html>
-        """)
+            """
+            <html>
+            <head></head>
+            <body>
+            <h1>SciToken Issuer</h1>
+            <h2>Device code authorization complete!</h2>
+            <p>You may now close this page.</p>
+            </body>
+            </html>
+            """)
 
 
 class ClientRegistration(DisableXSRF, BaseHandler):
@@ -846,7 +883,7 @@ class ClientRegistration(DisableXSRF, BaseHandler):
 
         if 'grant_types' not in data:
             data['grant_types'] = ['authorization_code', 'urn:ietf:params:oauth:grant-type:device_code']
-        
+
         if 'response_types' not in data:
             data['response_types'] = 'code'
 
@@ -858,6 +895,10 @@ class ClientRegistration(DisableXSRF, BaseHandler):
         data['registration_client_uri'] = config.ENV.ISSUER_ADDRESS + '/client/'+data['client_id']
         data['registration_access_token'] = secrets.token_hex(32)
         logger.debug('client registration: %r', data)
+        try:
+            data = Client(**data)
+        except Exception:
+            raise OAuthError(400, error='invalid_client_metadata', description='invalid client data')
 
         try:
             await self.state.add_client(data)
@@ -866,7 +907,7 @@ class ClientRegistration(DisableXSRF, BaseHandler):
         else:
             self.set_status(201)
             logger.debug('returing: %r', data)
-            self.write(data)
+            self.write(dc_asdict(data))
 
 
 class ClientDetails(DisableXSRF, BaseHandler):
@@ -892,9 +933,9 @@ class ClientDetails(DisableXSRF, BaseHandler):
         except KeyError:
             raise HTTPError(401, reason='Unauthorized')
         else:
-            if ret['registration_access_token'] != token:
-               raise HTTPError(403, reason='Forbidden')
-            self.write(ret)
+            if ret.registration_access_token != token:
+                raise HTTPError(403, reason='Forbidden')
+            self.write(dc_asdict(ret))
 
     async def delete(self, client_id):
         token = self.get_access_token()
@@ -903,8 +944,8 @@ class ClientDetails(DisableXSRF, BaseHandler):
         except KeyError:
             raise HTTPError(401, reason='Unauthorized')
         else:
-            if ret['registration_access_token'] != token:
-               raise HTTPError(403, reason='Forbidden')
+            if ret.registration_access_token != token:
+                raise HTTPError(403, reason='Forbidden')
         try:
             await self.state.delete_client(client_id)
         except Exception:
@@ -913,10 +954,10 @@ class ClientDetails(DisableXSRF, BaseHandler):
 
 
 class Login(TokenMixin, OpenIDLoginHandler):  # type: ignore
-    def initialize(self, state, *args, **kwargs):
+    def initialize(self, *args, state, **kwargs):
         self.state = state
         return super().initialize(*args, **kwargs)
-    
+
     def get_current_user(self):
         return None
 
@@ -924,7 +965,7 @@ class Login(TokenMixin, OpenIDLoginHandler):  # type: ignore
 class Health(BaseHandler):
     """
     Health handler.
-    
+
     Mostly for Kubernetes health checks.
     """
     async def get(self):
@@ -950,7 +991,7 @@ class Server:
     def __init__(self):
         handler_config = {
             'debug': config.ENV.DEBUG,
-            'server_header': f'SciToken Issuer {version}',
+            'server_header': 'SciToken Issuer',
             'auth': {
                 'openid_url': config.ENV.IDP_ADDRESS,
             }

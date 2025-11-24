@@ -7,9 +7,11 @@ from grp import getgrall,getgrgid
 
 class Group:
     __slots__ = ['group', 'dirs']
+
     def __init__(self):
         self.group = None
         self.dirs = defaultdict(newgroup)
+
 
 def newgroup():
     return Group()
@@ -54,7 +56,6 @@ class GroupTree:
                     dirs.remove(d)
                     continue
                 leaf[path.name].group = self.get_group_name(path.stat().st_gid)
-
 
     def _examine_children(self, path, tree):
         groups = set()

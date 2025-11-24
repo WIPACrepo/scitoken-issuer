@@ -28,42 +28,34 @@ async def test_start(mongo_clear):
 
 
 async def test_start_static_clients(mongo_clear):
-    with env(STATIC_CLIENTS='{"foo": "bar"}'):
+    with env(STATIC_CLIENTS='[{"client_id":"foo","client_secret":"bar"}]'):
         s = state.State()
         await s.start()
 
         ret = await s.get_client("foo")
-        assert ret['static_client'] == True
+        assert ret.static_client == True
 
 
 async def test_start_static_impersonation_clients(mongo_clear):
-    with env(STATIC_IMPERSONATION_CLIENTS='{"bar": "bar"}'):
+    with env(STATIC_CLIENTS='[{"client_id":"bar","client_secret":"bar","impersonation":true}]'):
         s = state.State()
         await s.start()
 
         ret = await s.get_client("bar")
-        assert ret['static_client'] == True
-        assert ret['impersonation'] == True
-        
-    with env(STATIC_CLIENTS='{"bar": "bar"}', STATIC_IMPERSONATION_CLIENTS='{"bar": "bar"}'):
-        s = state.State()
-        await s.start()
+        assert ret.static_client == True
+        assert ret.impersonation == True
 
-        ret = await s.get_client("bar")
-        assert ret['static_client'] == True
-        assert ret['impersonation'] == True
-        
-    with env(STATIC_CLIENTS='{"foo": "bar"}', STATIC_IMPERSONATION_CLIENTS='{"bar": "bar"}'):
+    with env(STATIC_CLIENTS='[{"client_id":"foo","client_secret":"bar"},{"client_id":"bar","client_secret":"bar","impersonation":true}]'):
         s = state.State()
         await s.start()
 
         ret = await s.get_client("foo")
-        assert ret['static_client'] == True
-        assert ret.get('impersonation', False) == False
+        assert ret.static_client == True
+        assert ret.impersonation == False
 
         ret = await s.get_client("bar")
-        assert ret['static_client'] == True
-        assert ret['impersonation'] == True
+        assert ret.static_client == True
+        assert ret.impersonation == True
 
 
 async def test_get_jwks(mongo_clear):
@@ -116,19 +108,19 @@ async def test_client(mongo_clear):
     s = state.State()
     await s.start()
 
-    await s.add_client({
-        'client_id': 'foo',
-        'bar': 'baz',
-    })
+    await s.add_client(state.Client(
+        client_id='foo',
+        client_secret='bar'
+    ))
 
     ret = await s.get_client('foo')
-    assert ret['client_id'] == 'foo'
-    assert ret['bar'] == 'baz'
+    assert ret.client_id == 'foo'
+    assert ret.client_secret == 'bar'
 
-    await s.update_client('foo', {'blah': 'foo'})
+    await s.update_client('foo', state.Client(client_id='foo', client_secret='bar'))
     ret = await s.get_client('foo')
-    assert ret['client_id'] == 'foo'
-    assert ret['blah'] == 'foo'
+    assert ret.client_id == 'foo'
+    assert ret.client_secret == 'bar'
 
     await s.delete_client('foo')
 

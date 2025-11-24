@@ -1,3 +1,6 @@
+<!--- Top of README Badges (automated) --->
+[![GitHub release (latest by date including pre-releases)](https://img.shields.io/github/v/release/WIPACrepo/scitoken-issuer?include_prereleases)](https://github.com/WIPACrepo/scitoken-issuer/) [![GitHub issues](https://img.shields.io/github/issues/WIPACrepo/scitoken-issuer)](https://github.com/WIPACrepo/scitoken-issuer/issues?q=is%3Aissue+sort%3Aupdated-desc+is%3Aopen) [![GitHub pull requests](https://img.shields.io/github/issues-pr/WIPACrepo/scitoken-issuer)](https://github.com/WIPACrepo/scitoken-issuer/pulls?q=is%3Apr+sort%3Aupdated-desc+is%3Aopen)
+<!--- End of README Badges (automated) --->
 # scitoken-issuer
 IceCube / WIPAC SciToken Issuer
 

@@ -1,5 +1,3 @@
-try:
-    from .version import __version__
-except ImportError:
-    # package is not installed
-    __version__ = ''
+
+# NOTE: `__version__` is not defined because this package is built using 'setuptools-scm' --
+#   use `importlib.metadata.version(...)` if you need to access version info at runtime.
