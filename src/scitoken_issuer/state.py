@@ -62,6 +62,7 @@ class Client(config.Client):
     static_client: bool = False
     registration_client_uri: str = ''
     registration_access_token: str = ''
+    token_endpoint_auth_method: str = ''
     scope: str = 'storage.read storage.create storage.modify'
 
 
