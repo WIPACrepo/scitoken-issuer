@@ -47,7 +47,7 @@ class LookupLDAP(LookupBase):
     def get_user_info(self, username) -> UserInfo:
         conn = LDAP()
         data = conn.get_user(username)
-        uid = data['uidNumber'] if 'uidNumber' in data else -1        
+        uid = data['uidNumber'] if 'uidNumber' in data else -1
         gid = data['gidNumber'] if 'gidNumber' in data else -1
         return UserInfo(uid, gid)
 

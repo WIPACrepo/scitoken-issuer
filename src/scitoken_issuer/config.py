@@ -32,7 +32,7 @@ class Client:
     client_id: str
     client_secret: str
     impersonation: bool = False
-    client_exchange: list = dc.field(default_factory=list)  
+    client_exchange: list = dc.field(default_factory=list)
 
 
 class ClientList(list[Client]):

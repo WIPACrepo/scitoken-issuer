@@ -50,7 +50,6 @@ class TokenMixin:
     set_secure_cookie: Callable[..., None]
     clear_cookie: Callable[[str], None]
 
-
     async def get_idp_tokens(self, username: str) -> dict[str, Any]:
         """
         Verify the username from the IdP token.
@@ -218,7 +217,7 @@ class BaseHandler(TokenMixin, RestHandler):
 
     def write_error(self, status_code=500, **kwargs):
         """Write out custom error json."""
-        data : dict[str, str|int] = {
+        data : dict[str, str | int] = {
             'code': status_code,
         }
         if "exc_info" in kwargs:
@@ -308,17 +307,17 @@ class WellKnown(BaseHandler):
                 'refresh_token',
                 'urn:ietf:params:oauth:grant-type:device_code',
             ],
-            #'code_challenge_methods_supported': [
-            #    'plain',
-            #    'S256',
-            #],
+            # 'code_challenge_methods_supported': [
+            #     'plain',
+            #     'S256',
+            # ],
             'subject_types_supported': ['public'],
             'token_endpoint_auth_methods_supported': ['client_secret_basic', 'client_secret_post'],
             'token_endpoint_auth_signing_alg_values_supported': config.DEFAULT_KEY_ALGORITHMS,
             'userinfo_signing_alg_values_supported': config.DEFAULT_KEY_ALGORITHMS,
             'id_token_signing_alg_values_supported': config.DEFAULT_KEY_ALGORITHMS,
-            #'request_object_signing_alg_values_supported':
-            #    ['none'],
+            # 'request_object_signing_alg_values_supported':
+            #     ['none'],
             'claims_supported': [
                 'aud',
                 'sub',
@@ -343,7 +342,7 @@ class Token(DisableXSRF, BaseHandler):
     """
     Handle OAuth2 token requests.
     """
-    async def post(self):
+    async def post(self):  # noqa: MFL000
         logging.info('token!')
         # check client id and secret
         client_id = self.current_user
@@ -370,7 +369,7 @@ class Token(DisableXSRF, BaseHandler):
                 auth_code = self.get_body_argument('code', '')
                 if not auth_code:
                     raise OAuthError(400, error='invalid_request', description='missing code')
-                
+
                 try:
                     ret = await self.state.get_auth_code(auth_code)
                 except KeyError:
@@ -385,7 +384,7 @@ class Token(DisableXSRF, BaseHandler):
                     if not redirect or redirect != ret['redirect']:
                         raise OAuthError(400, error='invalid_request', description='invalid redirect')
 
-                # auth code must only be used once                
+                # auth code must only be used once
                 await self.state.delete_auth_code(auth_code)
 
             case 'refresh_token':
@@ -454,7 +453,7 @@ class Token(DisableXSRF, BaseHandler):
                 device_code = self.get_body_argument('device_code', '')
                 if not device_code:
                     raise OAuthError(400, error='invalid_request', description='missing device_code')
-                
+
                 # validate device code
                 try:
                     ret = await self.state.get_device_code(device_code)
@@ -501,7 +500,7 @@ class Token(DisableXSRF, BaseHandler):
 
                 audience = self.get_body_argument('audience', '')
                 scope = self.get_body_argument('scope', '')
-                _requested_token_type = self.get_body_argument('requested_token_type', '')
+                # requested_token_type = self.get_body_argument('requested_token_type', '')
                 requested_subject = self.get_body_argument('requested_subject', '')
                 subject_token = self.get_body_argument('subject_token', '')
                 subject_token_type = self.get_body_argument('subject_token_type', '')
@@ -560,7 +559,7 @@ class Token(DisableXSRF, BaseHandler):
                     username = data['sub']
 
                 extra_return_fields['issued_token_type'] = 'urn:ietf:params:oauth:token-type:refresh_token'
-                
+
             case _:
                 raise OAuthError(400, error='unsupported_grant_type')
 
@@ -765,7 +764,7 @@ class DeviceCode(DisableXSRF, BaseHandler):
         client_secret = self.client_secret
         if not client_id or not client_secret:
             raise OAuthError(401, error='invalid_client', description='missing client_id or client_secret')
-    
+
         client = await self.state.get_client(client_id)
         if client.client_secret != client_secret:
             raise OAuthError(400, error='invalid_client', description='missing client_id or client_secret')
@@ -803,19 +802,19 @@ class DeviceCodeVerify(BaseHandler):
         if not user_code:
             # user enters code in browser
             self.write(
-            """
-            <html>
-            <head></head>
-            <body>
-            <h1>SciToken Issuer</h1>
-            <h2>Device code authorization</h2>
-            <form>
-            <label>Enter user code:</label>
-            <input type="text" name="user_code" />
-            </form>
-            </body>
-            </html>
-            """)
+                """
+                <html>
+                <head></head>
+                <body>
+                <h1>SciToken Issuer</h1>
+                <h2>Device code authorization</h2>
+                <form>
+                <label>Enter user code:</label>
+                <input type="text" name="user_code" />
+                </form>
+                </body>
+                </html>
+                """)
 
         else:
             # user has entered the code
@@ -857,16 +856,16 @@ class DeviceCodeComplete(BaseHandler):
         await self.state.update_device_code(data['device_code'], 'verified', username=username)
 
         self.write(
-        """
-        <html>
-        <head></head>
-        <body>
-        <h1>SciToken Issuer</h1>
-        <h2>Device code authorization complete!</h2>
-        <p>You may now close this page.</p>
-        </body>
-        </html>
-        """)
+            """
+            <html>
+            <head></head>
+            <body>
+            <h1>SciToken Issuer</h1>
+            <h2>Device code authorization complete!</h2>
+            <p>You may now close this page.</p>
+            </body>
+            </html>
+            """)
 
 
 class ClientRegistration(DisableXSRF, BaseHandler):
@@ -884,7 +883,7 @@ class ClientRegistration(DisableXSRF, BaseHandler):
 
         if 'grant_types' not in data:
             data['grant_types'] = ['authorization_code', 'urn:ietf:params:oauth:grant-type:device_code']
-        
+
         if 'response_types' not in data:
             data['response_types'] = 'code'
 
@@ -935,7 +934,7 @@ class ClientDetails(DisableXSRF, BaseHandler):
             raise HTTPError(401, reason='Unauthorized')
         else:
             if ret.registration_access_token != token:
-               raise HTTPError(403, reason='Forbidden')
+                raise HTTPError(403, reason='Forbidden')
             self.write(dc_asdict(ret))
 
     async def delete(self, client_id):
@@ -946,7 +945,7 @@ class ClientDetails(DisableXSRF, BaseHandler):
             raise HTTPError(401, reason='Unauthorized')
         else:
             if ret.registration_access_token != token:
-               raise HTTPError(403, reason='Forbidden')
+                raise HTTPError(403, reason='Forbidden')
         try:
             await self.state.delete_client(client_id)
         except Exception:
@@ -958,7 +957,7 @@ class Login(TokenMixin, OpenIDLoginHandler):  # type: ignore
     def initialize(self, *args, state, **kwargs):
         self.state = state
         return super().initialize(*args, **kwargs)
-    
+
     def get_current_user(self):
         return None
 
@@ -966,7 +965,7 @@ class Login(TokenMixin, OpenIDLoginHandler):  # type: ignore
 class Health(BaseHandler):
     """
     Health handler.
-    
+
     Mostly for Kubernetes health checks.
     """
     async def get(self):

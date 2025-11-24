@@ -238,7 +238,7 @@ class State:
     async def delete_client(self, client_id: str):
         """
         Delete a client.
-        
+
         Raises:
             Exception: If the client cannot be deleted.
         """
@@ -281,7 +281,7 @@ class State:
     async def delete_auth_code(self, code: str):
         """
         Delete an authorization code.
-        
+
         Raises:
             Exception: If the code cannot be deleted.
         """
@@ -297,7 +297,7 @@ class State:
     async def add_device_code(self, device_code: str, user_code: str, client_id: str, scope: str = ''):
         """
         Add a device code.
-        
+
         Valid device code statuses:
         * new - a new request
         * verified - a request was verified by a user
@@ -355,7 +355,7 @@ class State:
     async def delete_device_code(self, device_code: str):
         """
         Delete a device code.
-        
+
         Raises:
             Exception: If the device code cannot be deleted.
         """
@@ -378,7 +378,7 @@ class State:
     async def get_identity_for_sub(self, sub: str) -> str:
         """
         Get identity refresh token for a subject.
-        
+
         Raises:
             KeyError: If the subject is not found.
         """
