@@ -501,7 +501,7 @@ class Token(DisableXSRF, BaseHandler):
 
                 audience = self.get_body_argument('audience', '')
                 scope = self.get_body_argument('scope', '')
-                requested_token_type = self.get_body_argument('requested_token_type', '')
+                _requested_token_type = self.get_body_argument('requested_token_type', '')
                 requested_subject = self.get_body_argument('requested_subject', '')
                 subject_token = self.get_body_argument('subject_token', '')
                 subject_token_type = self.get_body_argument('subject_token_type', '')
@@ -992,7 +992,7 @@ class Server:
     def __init__(self):
         handler_config = {
             'debug': config.ENV.DEBUG,
-            'server_header': f'SciToken Issuer',
+            'server_header': 'SciToken Issuer',
             'auth': {
                 'openid_url': config.ENV.IDP_ADDRESS,
             }
