@@ -231,7 +231,7 @@ class State:
         Raises:
             KeyError: If the client is not found.
         """
-        ret = await self.db.clients.find_one_and_update({'client_id': client_id}, {'$set':  dc_asdict(data)})
+        ret = await self.db.clients.find_one_and_update({'client_id': client_id}, {'$set': dc_asdict(data)})
         if ret is None:
             raise KeyError('client_id not found')
 
