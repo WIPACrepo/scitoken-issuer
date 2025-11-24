@@ -17,7 +17,7 @@ jobs:
         with:
           ref: ${{ github.sha }}  # lock to triggered commit (github.ref is dynamic)
       - id: versions
-        uses: WIPACrepo/wipac-dev-py-versions-action@v2.5
+        uses: WIPACrepo/wipac-dev-py-versions-action@v2.8
 
   ############################################################################
   # LINTERS
@@ -82,7 +82,7 @@ jobs:
         with:
           fetch-depth: 0  # setuptools-scm needs to access git tags
           ref: ${{ github.sha }}  # lock to triggered commit (github.ref is dynamic)
-      - uses: WIPACrepo/wipac-dev-py-dependencies-action@v3.2
+      - uses: WIPACrepo/wipac-dev-py-dependencies-action@v3.4
 
   ############################################################################
   # TESTS
