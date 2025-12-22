@@ -306,6 +306,7 @@ class WellKnown(BaseHandler):
                 'authorization_code',
                 'refresh_token',
                 'urn:ietf:params:oauth:grant-type:device_code',
+                'urn:ietf:params:oauth:grant-type:token-exchange',
             ],
             # 'code_challenge_methods_supported': [
             #     'plain',
@@ -617,6 +618,7 @@ class Token(DisableXSRF, BaseHandler):
         if extra_return_fields:
             ret.update(extra_return_fields)
         self.write(ret)
+        logger.info('done writing tokens!')
 
 
 class Authorize(BaseHandler):
