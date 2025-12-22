@@ -123,11 +123,11 @@ def config_logging():
 
     if ENV.LOG_LEVEL not in setlevel:
         raise Exception('LOG_LEVEL is not a proper log level')
-    logformat = '%(asctime)s %(levelname)s %(name)s %(module)s:%(lineno)s - %(message)s'
-    logging.basicConfig(format=logformat, level=setlevel[ENV.LOG_LEVEL])
+    logformat = logging.Formatter('%(asctime)s %(levelname)s %(name)s %(module)s:%(lineno)s - %(message)s')
 
     # ignore third-party debug logging, like pymongo
     set_level(
         ENV.LOG_LEVEL,  # type: ignore
         first_party_loggers=['server', 'state'],
+        formatter=logformat,
     )
