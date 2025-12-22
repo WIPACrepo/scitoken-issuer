@@ -27,7 +27,7 @@ from rest_tools.server import (
 from rest_tools.utils.auth import Auth, OpenIDAuth
 
 from . import config
-from .state import Client, State
+from .state import Client, State, get_private_key
 from .group_validation import Validator
 from .utils import basic_decode
 
@@ -573,7 +573,7 @@ class Token(DisableXSRF, BaseHandler):
         # grant token
         current_key = await self.state.get_current_key()
         auth = Auth(
-            secret=current_key['private_key'],
+            secret=get_private_key(current_key),
             issuer=config.ENV.ISSUER_ADDRESS,
             algorithm=config.ENV.KEY_TYPE,
             integer_times=True,  # scitokens-cpp can't handle floats

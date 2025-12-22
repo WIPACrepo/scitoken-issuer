@@ -1,4 +1,4 @@
-from typing import Any
+from typing import Any, Self
 
 from cryptography.hazmat.primitives import serialization
 from cryptography.hazmat.primitives.asymmetric import rsa, ec, ed25519
@@ -21,6 +21,10 @@ class GenKeysBase:
             format=serialization.PublicFormat.SubjectPublicKeyInfo
         )
         return (priv_pem, pub_pem)
+
+    @staticmethod
+    def load_private_key_from_pem(pem) -> Any:
+        return serialization.load_pem_private_key(pem, password=None)
 
     def gen_jwk(self, kid: str = 'testing') -> dict[str, Any]:
         jwk = self.algorithm.to_jwk(self.public_key, as_dict=True)
