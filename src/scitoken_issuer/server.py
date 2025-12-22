@@ -589,12 +589,14 @@ class Token(DisableXSRF, BaseHandler):
                 logger.error('CUSTOM_CLAIMS should not override existing claims')
                 raise OAuthError(500, error="invalid_claims")
             access_claims.update(config.ENV.CUSTOM_CLAIMS)
+        logger.info('creating access token')
         access_token = auth.create_token(
             subject=username,
             expiration=config.ENV.ACCESS_TOKEN_EXPIRATION,
             payload=access_claims,
             headers={'kid': current_key['kid']},
         )
+        logger.info('creating refresh token')
         refresh_token = auth.create_token(
             subject=username,
             expiration=config.ENV.REFRESH_TOKEN_EXPIRATION,
@@ -608,6 +610,7 @@ class Token(DisableXSRF, BaseHandler):
             },
             headers={'kid': current_key['kid']},
         )
+        logger.info('writing to socket')
         ret = {
             'access_token': access_token,
             'token_type': 'Bearer',
