@@ -22,6 +22,10 @@ class GenKeysBase:
         )
         return (priv_pem, pub_pem)
 
+    @staticmethod
+    def load_private_key_from_pem(pem) -> Any:
+        return serialization.load_pem_private_key(pem, password=None)
+
     def gen_jwk(self, kid: str = 'testing') -> dict[str, Any]:
         jwk = self.algorithm.to_jwk(self.public_key, as_dict=True)
         jwk['kid'] = kid

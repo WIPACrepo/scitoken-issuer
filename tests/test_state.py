@@ -1,4 +1,10 @@
+import logging
+import time
+import uuid
+
 import pytest
+from rest_tools.utils.auth import Auth
+
 from scitoken_issuer import state, gen_keys, config
 
 from .util import env
@@ -191,3 +197,56 @@ async def test_identity(mongo_clear):
     await s.delete_identity('test')
     with pytest.raises(KeyError):
         await s.get_identity_for_sub('test')
+
+
+async def test_create_tokens_time(mongo_clear):
+    with env(KEY_TYPE='RS256'):
+        s = state.State()
+        await s.start()
+        current_key = state.get_private_key(await s.get_current_key())
+
+        start_time = time.time()
+
+        logging.info('key: %r', current_key)
+
+        auth = Auth(
+            secret=current_key,
+            issuer=config.ENV.ISSUER_ADDRESS,
+            algorithm=config.ENV.KEY_TYPE,
+            integer_times=True,  # scitokens-cpp can't handle floats
+        )
+
+        username = 'test'
+        access_scope = 'storage.read:/'
+        access_claims = {
+            'jti': uuid.uuid4().hex,
+            config.ENV.IDP_USERNAME_CLAIM: username,
+            'scope': access_scope,
+        }
+        client_id = 'client'
+        scope = 'offline'
+        kid = uuid.uuid4().hex
+        logging.info('creating access token')
+        access_token = auth.create_token(
+            subject=username,
+            expiration=config.ENV.ACCESS_TOKEN_EXPIRATION,
+            payload=access_claims,
+            headers={'kid': kid},
+        )
+        logging.info('creating refresh token')
+        refresh_token = auth.create_token(
+            subject=username,
+            expiration=config.ENV.REFRESH_TOKEN_EXPIRATION,
+            payload={
+                'jti': uuid.uuid4().hex,
+                'aud': config.ENV.ISSUER_ADDRESS,
+                'azp': client_id,
+                config.ENV.IDP_USERNAME_CLAIM: username,
+                'idp_username': username,
+                'scope': scope,
+            },
+            headers={'kid': kid},
+        )
+        logging.info('done')
+
+        assert time.time() - start_time < .1

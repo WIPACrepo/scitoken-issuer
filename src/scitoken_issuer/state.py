@@ -5,6 +5,7 @@ from typing import Any, TypedDict
 from urllib.parse import quote_plus
 import uuid
 
+from cachetools import cached
 import motor.motor_asyncio
 import pymongo
 
@@ -37,7 +38,7 @@ class Key(TypedDict):
     private_key: bytes
 
 
-def check_key_type(key) -> bool:
+def check_key_type(key: Key) -> bool:
     """
     Check if the existing key type matches the config key type.
     """
@@ -49,6 +50,11 @@ def check_key_type(key) -> bool:
     elif config.ENV.KEY_TYPE.startswith('EdDSA'):
         return key['jwk']['kty'] == 'OKP'
     raise RuntimeError('Unknown KEY_TYPE')
+
+
+@cached(cache={}, key=lambda k: k['kid'])
+def get_private_key(key: Key) -> Any:
+    return GenKeysBase.load_private_key_from_pem(key['private_key'])
 
 
 @dataclass
