@@ -125,7 +125,7 @@ class State:
                 if name not in existing:
                     kwargs = self.INDEXES[collection][name]
                     logger.info('DB: creating index %s:%s %r', collection, name, kwargs)
-                    await self.db[collection].create_index(name=name, **kwargs)
+                    await self.db[collection].create_index(name=name, **kwargs)  # ty: ignore[invalid-argument-type]
         logger.info('all indexes created')
 
         static_clients = config.ENV.STATIC_CLIENTS if config.ENV.STATIC_CLIENTS else []

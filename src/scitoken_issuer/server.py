@@ -398,7 +398,7 @@ class Token(DisableXSRF, BaseHandler):
                 # validate refresh token
                 all_keys = await self.state.get_jwks()
                 logger.debug('all_keys: %r', all_keys)
-                keys = {
+                keys: dict[str, list[Any]] = {
                     k.key_id: k.key for k in jwt.PyJWKSet.from_dict(all_keys).keys
                 }
                 try:
