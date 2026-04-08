@@ -110,6 +110,43 @@ async def test_get_current_key(key, mongo_clear):
         assert len(ret['keys']) == 2
 
 
+async def test_get_current_key_mixed(mongo_clear):
+    with env(KEY_TYPE='RS256'):
+        s = state.State()
+        await s.start()
+        k1 = await s.get_current_key()
+
+    with env(KEY_TYPE='RS256'):
+        s = state.State()
+        await s.start()
+        k2 = await s.get_current_key()
+        assert k1 == k2
+
+    with env(KEY_TYPE='RS512'):
+        s = state.State()
+        await s.start()
+        k3 = await s.get_current_key()
+        assert k1 != k3
+
+    with env(KEY_TYPE='ES256'):
+        s = state.State()
+        await s.start()
+        k4 = await s.get_current_key()
+        
+    with env(KEY_TYPE='ES384'):
+        s = state.State()
+        await s.start()
+        k5 = await s.get_current_key()
+        assert k4 != k5
+        
+    with env(KEY_TYPE='ES521'):
+        s = state.State()
+        await s.start()
+        k6 = await s.get_current_key()
+        assert k4 != k6
+        assert k5 != k6
+
+
 async def test_client(mongo_clear):
     s = state.State()
     await s.start()

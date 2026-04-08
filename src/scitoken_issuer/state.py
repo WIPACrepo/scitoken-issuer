@@ -19,9 +19,9 @@ logger = logging.getLogger('state')
 def _make_new_key() -> GenKeysBase:
     logger.debug('making new key of type %s', config.ENV.KEY_TYPE)
     if config.ENV.KEY_TYPE.startswith('RS'):
-        return GenKeysRSA()
+        return GenKeysRSA(key_bytes=int(config.ENV.KEY_TYPE[2:]))
     elif config.ENV.KEY_TYPE.startswith('ES'):
-        return GenKeysEC()
+        return GenKeysEC(curve=int(config.ENV.KEY_TYPE[2:]))
     elif config.ENV.KEY_TYPE.startswith('EdDSA'):
         return GenKeysOKP()
     raise RuntimeError('Unknown KEY_TYPE')
@@ -44,9 +44,10 @@ def check_key_type(key: Key) -> bool:
     """
     logger.info('check_key_type: %s vs %s', config.ENV.KEY_TYPE, key['jwk']['kty'])
     if config.ENV.KEY_TYPE.startswith('RS'):
-        return key['jwk']['kty'] == 'RSA'
+        logger.info('byte size: %d', GenKeysRSA.algorithm.from_jwk(key['jwk']).key_size // 8)
+        return key['jwk']['kty'] == 'RSA' and config.ENV.KEY_TYPE == f'RS{GenKeysRSA.algorithm.from_jwk(key['jwk']).key_size // 8}'
     elif config.ENV.KEY_TYPE.startswith('ES'):
-        return key['jwk']['kty'] == 'EC'
+        return key['jwk']['kty'] == 'EC' and config.ENV.KEY_TYPE == f'ES{key['jwk']['crv'][2:]}'
     elif config.ENV.KEY_TYPE.startswith('EdDSA'):
         return key['jwk']['kty'] == 'OKP'
     raise RuntimeError('Unknown KEY_TYPE')
@@ -198,6 +199,7 @@ class State:
         """
         Invalidate all existing jwks, then make a new one.
         """
+        logger.info('invalidating all keys')
         await self.db.keys.delete_many({})
         await self.rotate_jwk()
 

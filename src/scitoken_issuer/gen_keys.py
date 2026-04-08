@@ -1,4 +1,4 @@
-from typing import Any
+from typing import Any, Literal
 
 from cryptography.hazmat.primitives import serialization
 from cryptography.hazmat.primitives.asymmetric import rsa, ec, ed25519
@@ -35,16 +35,22 @@ class GenKeysBase:
 class GenKeysRSA(GenKeysBase):
     algorithm = jwt.algorithms.RSAAlgorithm
 
-    def __init__(self):
-        self.private_key = rsa.generate_private_key(public_exponent=65537, key_size=4096)
+    def __init__(self, key_bytes: int = 512):
+        if key_bytes not in (256, 384, 512):
+            raise RuntimeError('key_bytes is not 256, 384 or 512')
+        self.private_key = rsa.generate_private_key(public_exponent=65537, key_size=key_bytes*8)
         self.public_key = self.private_key.public_key()
 
 
 class GenKeysEC(GenKeysBase):
     algorithm = jwt.algorithms.ECAlgorithm
 
-    def __init__(self):
-        self.private_key = ec.generate_private_key(curve=ec.SECP384R1())
+    def __init__(self, curve: int = 521):
+        if curve == 512:  # backwards compatibility
+            curve = 521
+        if curve not in (256, 384, 521):
+            raise RuntimeError('curve is not 256, 384 or 521')
+        self.private_key = ec.generate_private_key(curve=getattr(ec, f'SECP{curve}R1')())
         self.public_key = self.private_key.public_key()
 
 

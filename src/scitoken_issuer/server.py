@@ -574,6 +574,7 @@ class Token(DisableXSRF, BaseHandler):
 
         # grant token
         current_key = await self.state.get_current_key()
+        logger.info("current key: %r", current_key)
         auth = Auth(
             secret=get_private_key(current_key),
             issuer=config.ENV.ISSUER_ADDRESS,
