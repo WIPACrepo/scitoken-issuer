@@ -1,36 +1,35 @@
 # mypy: disable-error-code="misc"
 # ignore complaints about get/set cookie and the base handler
 
-from collections.abc import Callable
-from dataclasses import asdict as dc_asdict
 import json
 import logging
 import secrets
 import time
-from typing import Any
 import urllib.parse
 import uuid
+from collections.abc import Callable
+from dataclasses import asdict as dc_asdict
+from typing import Any
 
 import jwt
 import pymongo.errors
 import tornado.escape
-from tornado.web import HTTPError
 import tornado.httpclient
-from tornado.httputil import url_concat
 from rest_tools.server import (
+    OpenIDLoginHandler,
     RestHandler,
     RestHandlerSetup,
     RestServer,
-    OpenIDLoginHandler,
-    catch_error
+    catch_error,
 )
 from rest_tools.utils.auth import Auth, OpenIDAuth
+from tornado.httputil import url_concat
+from tornado.web import HTTPError
 
 from . import config
-from .state import Client, State, get_private_key
 from .group_validation import Validator
+from .state import Client, State, get_private_key
 from .utils import basic_decode
-
 
 logger = logging.getLogger('server')
 

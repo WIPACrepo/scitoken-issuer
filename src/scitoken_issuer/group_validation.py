@@ -1,15 +1,14 @@
-from collections import namedtuple
-from grp import getgrall
 import logging
-from pathlib import Path
-from pwd import getpwnam
 import os
 import stat
+from collections import namedtuple
+from grp import getgrall
+from pathlib import Path
+from pwd import getpwnam
 
-from cachetools import cachedmethod, TTLCache
 import cachetools.func
+from cachetools import TTLCache, cachedmethod
 from krs.ldap import LDAP, get_ldap_members
-
 
 GroupInfo = namedtuple("GroupInfo", ["gid", "members"])
 
