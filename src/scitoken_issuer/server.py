@@ -343,7 +343,7 @@ class Token(DisableXSRF, BaseHandler):
     """
     Handle OAuth2 token requests.
     """
-    async def post(self):  # noqa: MFL000
+    async def post(self):  # noqa: C901, PLR0915
         logging.info('token!')
         # check client id and secret
         client_id = self.current_user
