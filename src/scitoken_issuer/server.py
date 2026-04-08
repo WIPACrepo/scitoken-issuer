@@ -1,8 +1,10 @@
 # mypy: disable-error-code="misc"
 # ignore complaints about get/set cookie and the base handler
 
+import fnmatch
 import json
 import logging
+import re
 import secrets
 import time
 import urllib.parse
@@ -648,7 +650,11 @@ class Authorize(BaseHandler):
 
         redirect = self.get_query_argument('redirect_uri', None)
         if not client.redirect_uris and not redirect:
-            raise OAuthError(400, error='invalid_request', description='redirect_uris is required')
+            raise OAuthError(400, error='invalid_request', description='redirect_uri is required')
+        if not redirect:
+            redirect = client.redirect_uris[0]
+        elif not any(re.match(fnmatch.translate(p), redirect) for p in client.redirect_uris):
+            raise OAuthError(400, error='invalid_request', description='redirect_uri is invalid')
 
         state = {
             'client_id': client_id,
@@ -886,7 +892,7 @@ class ClientRegistration(DisableXSRF, BaseHandler):
             raise OAuthError(400, error='invalid_client_metadata', description='client_name is not included')
 
         if 'redirect_uris' not in data:
-            data['redirect_uris'] = []
+            data['redirect_uris'] = ['*']
 
         if 'grant_types' not in data:
             data['grant_types'] = ['authorization_code', 'urn:ietf:params:oauth:grant-type:device_code']
