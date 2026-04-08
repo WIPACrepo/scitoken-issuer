@@ -378,6 +378,8 @@ class Token(DisableXSRF, BaseHandler):
 
                 username = ret['username']
                 scope = ret['scope']
+                if ret['client_id'] != client_id:
+                    raise OAuthError(400, error='invalid_request', description='invalid code')
                 if ret['expiration'] < time.time():
                     raise OAuthError(400, error='invalid_request', description='invalid code')
                 if ret['redirect']:
