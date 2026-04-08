@@ -399,7 +399,7 @@ class Token(DisableXSRF, BaseHandler):
                 all_keys = await self.state.get_jwks()
                 logger.debug('all_keys: %r', all_keys)
                 keys: dict[str, list[Any]] = {
-                    k.key_id: k.key for k in jwt.PyJWKSet.from_dict(all_keys).keys
+                    k.key_id: k.key for k in jwt.PyJWKSet.from_dict(all_keys).keys if k.key_id
                 }
                 try:
                     auth = OpenIDAuth('', provider_info={'jwks_uri': ''}, public_keys=keys, algorithms=config.DEFAULT_KEY_ALGORITHMS)
