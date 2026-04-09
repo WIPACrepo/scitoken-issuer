@@ -443,7 +443,7 @@ class Token(DisableXSRF, BaseHandler):
                 access_token = auth.create_token(
                     subject=client_id,
                     expiration=config.ENV.ACCESS_TOKEN_EXPIRATION,
-                    payload={'scope': scope, 'aud': config.ENV.ISSUER_ADDRESS},
+                    payload={'scope': scope, 'azp': client_id, 'aud': config.ENV.ISSUER_ADDRESS},
                     headers={'kid': current_key['kid']},
                 )
                 self.write({
@@ -524,6 +524,7 @@ class Token(DisableXSRF, BaseHandler):
                 else:
                     # try to do client exchange workflow
                     logger.info('token-exchange: client exchange workflow')
+                    orig_client_id = client_id
                     if not subject_token:
                         raise OAuthError(400, error='invalid_request', description='subject_token is required')
                     if not subject_token_type:
@@ -531,6 +532,10 @@ class Token(DisableXSRF, BaseHandler):
                     if subject_token_type != 'urn:ietf:params:oauth:token-type:access_token':
                         raise OAuthError(400, error='invalid_request', description='subject_token_type must be access token')
                     if audience:
+                        # must be a valid target from the current client
+                        if audience not in client.client_exchange:
+                            raise OAuthError(400, error='invalid_target', description='invalid audience: must be in the client_exchange list')
+
                         # audience must be another valid client
                         try:
                             new_client = await self.state.get_client(audience)
@@ -551,6 +556,10 @@ class Token(DisableXSRF, BaseHandler):
                         data = auth.validate(subject_token)
                     except Exception:
                         logger.info('error validating subject token', exc_info=True)
+                        raise OAuthError(400, error='invalid_request', description='subject_token is invalid')
+
+                    if 'azp' not in data or data['azp'] != orig_client_id:
+                        logger.info('client mismatch: azp=%s but client_id=%s', data.get('azp', ''), orig_client_id)
                         raise OAuthError(400, error='invalid_request', description='subject_token is invalid')
 
                     if not set(scope.split()).issubset(set(data['scope'].split())):
@@ -583,6 +592,7 @@ class Token(DisableXSRF, BaseHandler):
             integer_times=True,  # scitokens-cpp can't handle floats
         )
         access_claims = {
+            'azp': client_id,
             'jti': uuid.uuid4().hex,
             config.ENV.IDP_USERNAME_CLAIM: username,
             'scope': access_scope,
