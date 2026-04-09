@@ -345,7 +345,7 @@ class State:
         Raises:
             KeyError: If the device code is not found.
         """
-        ret = await self.db.device_codes.find_one({'device_code': device_code}, projection={'_id': False})
+        ret = await self.db.device_codes.find_one({'device_code': device_code, 'expiration': {'$gte': time.time()}}, projection={'_id': False})
         if ret is None:
             raise KeyError('device_code not found')
         return ret
@@ -357,7 +357,7 @@ class State:
         Raises:
             KeyError: If the device code is not found.
         """
-        ret = await self.db.device_codes.find_one({'user_code': user_code}, projection={'_id': False})
+        ret = await self.db.device_codes.find_one({'user_code': user_code, 'expiration': {'$gte': time.time()}}, projection={'_id': False})
         if ret is None:
             raise KeyError('device_code not found')
         return ret

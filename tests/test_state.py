@@ -1,3 +1,4 @@
+import asyncio
 import logging
 import time
 import uuid
@@ -217,6 +218,22 @@ async def test_device_code(mongo_clear):
         await s.get_device_code('foo')
 
     await s.delete_device_code('foo')
+
+
+async def test_device_code_exp(mongo_clear):
+    with env(DEVICE_CODE_EXPIRATION=1):
+        s = state.State()
+        await s.start()
+        
+        await s.add_device_code(device_code='foo', user_code='bar', client_id='baz')
+        ret = await s.get_device_code('foo')
+        assert ret['device_code'] == 'foo'
+
+        await asyncio.sleep(1)
+
+        with pytest.raises(KeyError):
+            await s.get_device_code('foo')
+
 
 async def test_identity(mongo_clear):
     s = state.State()
