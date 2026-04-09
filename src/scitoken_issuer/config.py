@@ -17,7 +17,7 @@ DEFAULT_KEY_ALGORITHMS = [
     'RS512',
     'ES256',
     'ES384',
-    'ES512',
+    'ES521',
     'EdDSA',
 ]
 

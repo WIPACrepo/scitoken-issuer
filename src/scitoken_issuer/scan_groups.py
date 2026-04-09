@@ -1,8 +1,8 @@
+import logging
 from argparse import ArgumentParser
 from collections import defaultdict
-import logging
+from grp import getgrall, getgrgid
 from pathlib import Path
-from grp import getgrall,getgrgid
 
 
 class Group:

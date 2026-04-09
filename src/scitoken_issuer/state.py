@@ -1,17 +1,18 @@
-from dataclasses import dataclass, asdict as dc_asdict, field as dc_field
 import logging
 import time
+import uuid
+from dataclasses import asdict as dc_asdict
+from dataclasses import dataclass
+from dataclasses import field as dc_field
 from typing import Any, TypedDict
 from urllib.parse import quote_plus
-import uuid
 
-from cachetools import cached
 import motor.motor_asyncio
 import pymongo
+from cachetools import cached
 
 from . import config
 from .gen_keys import GenKeysBase, GenKeysEC, GenKeysOKP, GenKeysRSA
-
 
 logger = logging.getLogger('state')
 
@@ -19,9 +20,9 @@ logger = logging.getLogger('state')
 def _make_new_key() -> GenKeysBase:
     logger.debug('making new key of type %s', config.ENV.KEY_TYPE)
     if config.ENV.KEY_TYPE.startswith('RS'):
-        return GenKeysRSA()
+        return GenKeysRSA(key_bytes=int(config.ENV.KEY_TYPE[2:]))
     elif config.ENV.KEY_TYPE.startswith('ES'):
-        return GenKeysEC()
+        return GenKeysEC(curve=int(config.ENV.KEY_TYPE[2:]))
     elif config.ENV.KEY_TYPE.startswith('EdDSA'):
         return GenKeysOKP()
     raise RuntimeError('Unknown KEY_TYPE')
@@ -44,9 +45,10 @@ def check_key_type(key: Key) -> bool:
     """
     logger.info('check_key_type: %s vs %s', config.ENV.KEY_TYPE, key['jwk']['kty'])
     if config.ENV.KEY_TYPE.startswith('RS'):
-        return key['jwk']['kty'] == 'RSA'
+        logger.info('byte size: %d', GenKeysRSA.algorithm.from_jwk(key['jwk']).key_size // 8)
+        return key['jwk']['kty'] == 'RSA' and config.ENV.KEY_TYPE == f'RS{GenKeysRSA.algorithm.from_jwk(key['jwk']).key_size // 8}'
     elif config.ENV.KEY_TYPE.startswith('ES'):
-        return key['jwk']['kty'] == 'EC'
+        return key['jwk']['kty'] == 'EC' and config.ENV.KEY_TYPE == f'ES{key['jwk']['crv'][2:]}'
     elif config.ENV.KEY_TYPE.startswith('EdDSA'):
         return key['jwk']['kty'] == 'OKP'
     raise RuntimeError('Unknown KEY_TYPE')
@@ -123,7 +125,7 @@ class State:
                 if name not in existing:
                     kwargs = self.INDEXES[collection][name]
                     logger.info('DB: creating index %s:%s %r', collection, name, kwargs)
-                    await self.db[collection].create_index(name=name, **kwargs)
+                    await self.db[collection].create_index(name=name, **kwargs)  # ty: ignore[invalid-argument-type]
         logger.info('all indexes created')
 
         static_clients = config.ENV.STATIC_CLIENTS if config.ENV.STATIC_CLIENTS else []
@@ -198,6 +200,7 @@ class State:
         """
         Invalidate all existing jwks, then make a new one.
         """
+        logger.info('invalidating all keys')
         await self.db.keys.delete_many({})
         await self.rotate_jwk()
 
@@ -270,7 +273,7 @@ class State:
             'scope': scope,
             'username': username,
             'redirect': redirect,
-            'expiration': time.time() + config.ENV.DEVICE_CODE_EXPIRATION,
+            'expiration': time.time() + config.ENV.AUTHORIZATION_CODE_EXPIRATION,
         })
 
     async def get_auth_code(self, code: str) -> dict:
@@ -342,7 +345,7 @@ class State:
         Raises:
             KeyError: If the device code is not found.
         """
-        ret = await self.db.device_codes.find_one({'device_code': device_code}, projection={'_id': False})
+        ret = await self.db.device_codes.find_one({'device_code': device_code, 'expiration': {'$gte': time.time()}}, projection={'_id': False})
         if ret is None:
             raise KeyError('device_code not found')
         return ret
@@ -354,7 +357,7 @@ class State:
         Raises:
             KeyError: If the device code is not found.
         """
-        ret = await self.db.device_codes.find_one({'user_code': user_code}, projection={'_id': False})
+        ret = await self.db.device_codes.find_one({'user_code': user_code, 'expiration': {'$gte': time.time()}}, projection={'_id': False})
         if ret is None:
             raise KeyError('device_code not found')
         return ret

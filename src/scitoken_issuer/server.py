@@ -1,36 +1,37 @@
 # mypy: disable-error-code="misc"
 # ignore complaints about get/set cookie and the base handler
 
-from collections.abc import Callable
-from dataclasses import asdict as dc_asdict
+import fnmatch
 import json
 import logging
+import re
 import secrets
 import time
-from typing import Any
 import urllib.parse
 import uuid
+from collections.abc import Callable
+from dataclasses import asdict as dc_asdict
+from typing import Any
 
 import jwt
 import pymongo.errors
 import tornado.escape
-from tornado.web import HTTPError
 import tornado.httpclient
-from tornado.httputil import url_concat
 from rest_tools.server import (
+    OpenIDLoginHandler,
     RestHandler,
     RestHandlerSetup,
     RestServer,
-    OpenIDLoginHandler,
-    catch_error
+    catch_error,
 )
 from rest_tools.utils.auth import Auth, OpenIDAuth
+from tornado.httputil import url_concat
+from tornado.web import HTTPError
 
 from . import config
-from .state import Client, State, get_private_key
 from .group_validation import Validator
+from .state import Client, State, get_private_key
 from .utils import basic_decode
-
 
 logger = logging.getLogger('server')
 
@@ -343,7 +344,7 @@ class Token(DisableXSRF, BaseHandler):
     """
     Handle OAuth2 token requests.
     """
-    async def post(self):  # noqa: MFL000
+    async def post(self):  # noqa: C901, PLR0915
         logging.info('token!')
         # check client id and secret
         client_id = self.current_user
@@ -378,6 +379,8 @@ class Token(DisableXSRF, BaseHandler):
 
                 username = ret['username']
                 scope = ret['scope']
+                if ret['client_id'] != client_id:
+                    raise OAuthError(400, error='invalid_request', description='invalid code')
                 if ret['expiration'] < time.time():
                     raise OAuthError(400, error='invalid_request', description='invalid code')
                 if ret['redirect']:
@@ -397,8 +400,8 @@ class Token(DisableXSRF, BaseHandler):
                 # validate refresh token
                 all_keys = await self.state.get_jwks()
                 logger.debug('all_keys: %r', all_keys)
-                keys = {
-                    k.key_id: k.key for k in jwt.PyJWKSet.from_dict(all_keys).keys
+                keys: dict[str, list[Any]] = {
+                    k.key_id: k.key for k in jwt.PyJWKSet.from_dict(all_keys).keys if k.key_id
                 }
                 try:
                     auth = OpenIDAuth('', provider_info={'jwks_uri': ''}, public_keys=keys, algorithms=config.DEFAULT_KEY_ALGORITHMS)
@@ -440,7 +443,7 @@ class Token(DisableXSRF, BaseHandler):
                 access_token = auth.create_token(
                     subject=client_id,
                     expiration=config.ENV.ACCESS_TOKEN_EXPIRATION,
-                    payload={'scope': scope, 'aud': config.ENV.ISSUER_ADDRESS},
+                    payload={'scope': scope, 'azp': client_id, 'aud': config.ENV.ISSUER_ADDRESS},
                     headers={'kid': current_key['kid']},
                 )
                 self.write({
@@ -521,6 +524,7 @@ class Token(DisableXSRF, BaseHandler):
                 else:
                     # try to do client exchange workflow
                     logger.info('token-exchange: client exchange workflow')
+                    orig_client_id = client_id
                     if not subject_token:
                         raise OAuthError(400, error='invalid_request', description='subject_token is required')
                     if not subject_token_type:
@@ -528,6 +532,10 @@ class Token(DisableXSRF, BaseHandler):
                     if subject_token_type != 'urn:ietf:params:oauth:token-type:access_token':
                         raise OAuthError(400, error='invalid_request', description='subject_token_type must be access token')
                     if audience:
+                        # must be a valid target from the current client
+                        if audience not in client.client_exchange:
+                            raise OAuthError(400, error='invalid_target', description='invalid audience: must be in the client_exchange list')
+
                         # audience must be another valid client
                         try:
                             new_client = await self.state.get_client(audience)
@@ -540,14 +548,18 @@ class Token(DisableXSRF, BaseHandler):
                     # validate subject token
                     all_keys = await self.state.get_jwks()
                     logger.debug('all_keys: %r', all_keys)
-                    keys = {
-                        k.key_id: k.key for k in jwt.PyJWKSet.from_dict(all_keys).keys
+                    keys: dict[str, list[Any]] = {
+                        k.key_id: k.key for k in jwt.PyJWKSet.from_dict(all_keys).keys if k.key_id
                     }
                     try:
                         auth = OpenIDAuth('', provider_info={'jwks_uri': ''}, public_keys=keys, algorithms=config.DEFAULT_KEY_ALGORITHMS)
                         data = auth.validate(subject_token)
                     except Exception:
                         logger.info('error validating subject token', exc_info=True)
+                        raise OAuthError(400, error='invalid_request', description='subject_token is invalid')
+
+                    if 'azp' not in data or data['azp'] != orig_client_id:
+                        logger.info('client mismatch: azp=%s but client_id=%s', data.get('azp', ''), orig_client_id)
                         raise OAuthError(400, error='invalid_request', description='subject_token is invalid')
 
                     if not set(scope.split()).issubset(set(data['scope'].split())):
@@ -572,6 +584,7 @@ class Token(DisableXSRF, BaseHandler):
 
         # grant token
         current_key = await self.state.get_current_key()
+        logger.info("current key: %r", current_key)
         auth = Auth(
             secret=get_private_key(current_key),
             issuer=config.ENV.ISSUER_ADDRESS,
@@ -579,6 +592,7 @@ class Token(DisableXSRF, BaseHandler):
             integer_times=True,  # scitokens-cpp can't handle floats
         )
         access_claims = {
+            'azp': client_id,
             'jti': uuid.uuid4().hex,
             config.ENV.IDP_USERNAME_CLAIM: username,
             'scope': access_scope,
@@ -646,7 +660,11 @@ class Authorize(BaseHandler):
 
         redirect = self.get_query_argument('redirect_uri', None)
         if not client.redirect_uris and not redirect:
-            raise OAuthError(400, error='invalid_request', description='redirect_uris is required')
+            raise OAuthError(400, error='invalid_request', description='redirect_uri is required')
+        if not redirect:
+            redirect = client.redirect_uris[0]
+        elif not any(re.match(fnmatch.translate(p), redirect) for p in client.redirect_uris):
+            raise OAuthError(400, error='invalid_request', description='redirect_uri is invalid')
 
         state = {
             'client_id': client_id,
@@ -721,8 +739,8 @@ class UserInfo(BaseHandler):
         # validate refresh token
         all_keys = await self.state.get_jwks()
         logger.debug('all_keys: %r', all_keys)
-        keys = {
-            k.key_id: k.key for k in jwt.PyJWKSet.from_dict(all_keys).keys
+        keys: dict[str, list[Any]] = {
+            k.key_id: k.key for k in jwt.PyJWKSet.from_dict(all_keys).keys if k.key_id
         }
         try:
             auth = OpenIDAuth('', provider_info={'jwks_uri': ''}, public_keys=keys, algorithms=config.DEFAULT_KEY_ALGORITHMS)
@@ -884,7 +902,7 @@ class ClientRegistration(DisableXSRF, BaseHandler):
             raise OAuthError(400, error='invalid_client_metadata', description='client_name is not included')
 
         if 'redirect_uris' not in data:
-            data['redirect_uris'] = []
+            data['redirect_uris'] = ['*']
 
         if 'grant_types' not in data:
             data['grant_types'] = ['authorization_code', 'urn:ietf:params:oauth:grant-type:device_code']

@@ -10,6 +10,8 @@ on:
 jobs:
   py-versions:
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
     outputs:
       matrix: ${{ steps.versions.outputs.matrix }}
     steps:
@@ -23,42 +25,15 @@ jobs:
   # LINTERS
   #############################################################################
 
-  flake8:
+  lint-python:
     needs: [ py-versions ]
-    runs-on: ubuntu-latest
-    strategy:
-      fail-fast: false
-      matrix:
-        py3: ${{ fromJSON(needs.py-versions.outputs.matrix) }}
-    steps:
-      - uses: actions/checkout@v6
-        with:
-          ref: ${{ github.sha }}  # lock to triggered commit (github.ref is dynamic)
-      - uses: actions/setup-python@v6
-        with:
-          python-version: ${{ matrix.py3 }}
-      - uses: WIPACrepo/wipac-dev-flake8-action@v1.3
-        with:
-          max-complexity: 15  # ideal is ~10-15
-
-  mypy:
-    needs: [ py-versions ]
-    runs-on: ubuntu-latest
-    strategy:
-      max-parallel: 4
-      fail-fast: false
-      matrix:
-        py3: ${{ fromJSON(needs.py-versions.outputs.matrix) }}
-    steps:
-      - uses: actions/checkout@v6
-        with:
-          fetch-depth: 0  # setuptools-scm needs to access git tags
-          ref: ${{ github.sha }}  # lock to triggered commit (github.ref is dynamic)
-      - uses: actions/setup-python@v6
-        with:
-          python-version: ${{ matrix.py3 }}
-      - uses: WIPACrepo/wipac-dev-mypy-action@v2.0
-
+    uses: WIPACrepo/wipac-dev-workflows/.github/workflows/lint-python.yml@v1.25
+    permissions:
+      contents: read
+    with:
+      py-matrix-json: ${{ needs.py-versions.outputs.matrix }}
+      max-complexity: 15
+      max-statements: 100
 
   ############################################################################
   # PACKAGING
@@ -67,6 +42,8 @@ jobs:
   py-setup:
     if: ${{ github.actor != 'dependabot[bot]' }} # dependabot cannot access PAT
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
     steps:
       - uses: actions/checkout@v6
         with:
@@ -81,6 +58,8 @@ jobs:
 
   py-dependencies:
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
     steps:
       - uses: actions/checkout@v6
         with:
@@ -95,6 +74,8 @@ jobs:
   tests:
     needs: [py-versions]
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
     strategy:
       max-parallel: 4
       fail-fast: false
@@ -134,6 +115,8 @@ jobs:
   docker-build:
     name: "Docker Image"
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
     steps:
       # Note: we need to checkout the repository at the workflow sha in case during the workflow
       # the branch was updated. To keep PSR working with the configured release branches,
@@ -158,13 +141,14 @@ jobs:
     if: format('refs/heads/{0}', github.event.repository.default_branch) == github.ref
     needs: [
       py-versions,
-      flake8,
-      mypy,
+      lint-python,
       py-setup,
       py-dependencies,
       tests,
     ]
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
     outputs:
       next-version: ${{ steps.next-version.outputs.version }}
     steps:
@@ -188,8 +172,7 @@ jobs:
     if: format('refs/heads/{0}', github.event.repository.default_branch) == github.ref && needs.release-version.outputs.next-version != ''
     needs: [
       py-versions,
-      flake8,
-      mypy,
+      lint-python,
       py-setup,
       py-dependencies,
       tests,

@@ -3,7 +3,6 @@ import asyncio
 from .config import config_logging
 from .server import Server
 
-
 config_logging()
 
 
