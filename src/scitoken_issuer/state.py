@@ -273,7 +273,7 @@ class State:
             'scope': scope,
             'username': username,
             'redirect': redirect,
-            'expiration': time.time() + config.ENV.DEVICE_CODE_EXPIRATION,
+            'expiration': time.time() + config.ENV.AUTHORIZATION_CODE_EXPIRATION,
         })
 
     async def get_auth_code(self, code: str) -> dict:
