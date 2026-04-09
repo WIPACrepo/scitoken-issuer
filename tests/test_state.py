@@ -6,7 +6,7 @@ import uuid
 import pytest
 from rest_tools.utils.auth import Auth
 
-from scitoken_issuer import state, gen_keys, config
+from scitoken_issuer import config, gen_keys, state
 
 from .util import env
 
