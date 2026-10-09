@@ -26,81 +26,33 @@ import requests.exceptions
 import scitoken_issuer.config
 import scitoken_issuer.server
 from scitoken_issuer.server import Server
+from scitoken_issuer.keycloak_bootstrap import Bootstrap
 
 from .util import env
 
 
 @pytest.fixture(scope='module')
 def keycloak_bootstrap(monkeysession, port):
-    monkeysession.setenv('KEYCLOAK_REALM', 'testrealm')
-    monkeysession.setenv('KEYCLOAK_CLIENT_ID', 'testclient')
-    monkeysession.setenv('USERNAME', 'admin')
-    monkeysession.setenv('PASSWORD', 'admin')
     if 'KEYCLOAK_URL' not in os.environ:
         monkeysession.setenv('KEYCLOAK_URL', 'http://localhost:8080')
-
-    secret = bootstrap.bootstrap()
-    monkeysession.setenv('KEYCLOAK_CLIENT_SECRET', secret)
+    b = Bootstrap(keycloak_realm='testrealm', keycloak_admin_username='admin', keycloak_admin_password='admin')
+    monkeysession.setenv('KEYCLOAK_CLIENT_ID', 'testclient')
+    b.bootstrap_realm()
 
     try:
-        token = partial(get_token, os.environ['KEYCLOAK_URL'],
-                client_id='testclient',
-                client_secret=secret,
-        )
+        idp_secret = b.bootstrap_client('idp_client', root_url=f'http://localhost:{port}')
         rest_client = RestClient(
-            f'{os.environ["KEYCLOAK_URL"]}/auth/admin/realms/testrealm',
-            token=token,
+            f'{b.keycloak_url}/admin/realms/testrealm',
+            token=lambda: b.keycloak_admin_token,
             retries=0,
         )
 
-        tok = bootstrap.get_token()
-        url = f'{os.environ["KEYCLOAK_URL"]}/auth/admin/realms/testrealm/clients'
-        args = {
-            'authorizationServicesEnabled': False,
-            'clientId': 'idp_client',
-            'consentRequired': False,
-            'defaultClientScopes': ['web-origins', 'roles', 'profile'],
-            'directAccessGrantsEnabled': True,
-            'enabled': True,
-            'fullScopeAllowed': True,
-            'implicitFlowEnabled': False,
-            'optionalClientScopes': ['offline_access', 'microprofile-jwt', 'email'],
-            'serviceAccountsEnabled': False,
-            'standardFlowEnabled': True,
-            'rootUrl': f'http://localhost:{port}',
-            'redirectUris': [f'http://localhost:{port}/*'],
-            'publicClient': False,
-        }
-        r = requests.post(url, json=args,
-                        headers={'Authorization': f'bearer {tok}'})
-
-        url = f'{os.environ["KEYCLOAK_URL"]}/auth/admin/realms/testrealm/clients'
-        r = requests.get(url, headers={'Authorization': f'bearer {tok}'})
-        r.raise_for_status()
-        clients = r.json()
-        if not any(c['clientId'] == 'idp_client' for c in clients):
-            raise Exception(f'failed to create client "idp_client"')
-        kc_id = None
-        for c in clients:
-            if c['clientId'] == 'idp_client':
-                kc_id = c['id']
-                break
-
-        url = f'{os.environ["KEYCLOAK_URL"]}/auth/admin/realms/testrealm/clients/{kc_id}/client-secret'
-        r = requests.get(url, headers={'Authorization': f'bearer {tok}'})
-        r.raise_for_status()
-        idp_secret = r.json()['value']
-        if not idp_secret:
-            raise Exception('failed to get client_secret for "idp_client"')
-
-        with env(IDP_ADDRESS=f'{os.environ["KEYCLOAK_URL"]}/auth/realms/testrealm',
+        with env(IDP_ADDRESS=f'{b.keycloak_url}/realms/testrealm',
                  IDP_CLIENT_ID='idp_client',
                  IDP_CLIENT_SECRET=idp_secret):
             yield rest_client
     finally:
-        tok = bootstrap.get_token()
-        bootstrap.delete_service_role('testclient', token=tok)
-        bootstrap.delete_realm('testrealm', token=tok)
+        b.delete_realm()
 
 
 @pytest_asyncio.fixture
