@@ -30,31 +30,31 @@ class Bootstrap:
         })
 
         # figure out keycloak base url
-        self.keycloak_url = krs.bootstrap.keycloak_base_url(url=self._cfg['KEYCLOAK_URL'])  # pyright: ignore[reportArgumentType]
+        self.keycloak_url = krs.bootstrap.keycloak_base_url(url=str(self._cfg['KEYCLOAK_URL']))
 
         # cache the token for short periods (enough for setup)
-        self._token_cache = TTLCache(maxsize=1, ttl=60)
+        self._token_cache: TTLCache[str, str] = TTLCache(maxsize=1, ttl=60)
 
     @property
     def keycloak_admin_token(self):
         if 'keycloak_admin_token' not in self._token_cache:
             self._token_cache['keycloak_admin_token'] = krs.bootstrap.get_token(
                 base_url=self.keycloak_url,
-                username=self._cfg['KEYCLOAK_ADMIN_USERNAME'],  # pyright: ignore[reportArgumentType]
-                password=self._cfg['KEYCLOAK_ADMIN_PASSWORD'],  # pyright: ignore[reportArgumentType]
+                username=str(self._cfg['KEYCLOAK_ADMIN_USERNAME']),
+                password=str(self._cfg['KEYCLOAK_ADMIN_PASSWORD']),
             )
         return self._token_cache['keycloak_admin_token']
 
     def bootstrap_realm(self):
         krs.bootstrap.create_realm(
-            realm=self._cfg['KEYCLOAK_REALM'],  # pyright: ignore[reportArgumentType]
+            realm=str(self._cfg['KEYCLOAK_REALM']),
             token=self.keycloak_admin_token,
             base_url=self.keycloak_url,
         )
 
     def delete_realm(self):
         krs.bootstrap.delete_realm(
-            realm=self._cfg['KEYCLOAK_REALM'],  # pyright: ignore[reportArgumentType]
+            realm=str(self._cfg['KEYCLOAK_REALM']),
             token=self.keycloak_admin_token,
             base_url=self.keycloak_url,
         )
@@ -68,7 +68,7 @@ class Bootstrap:
         """
         base_url = self.keycloak_url
         token = self.keycloak_admin_token
-        realm = self._cfg['KEYCLOAK_REALM']  # pyright: ignore[reportArgumentType]
+        realm = str(self._cfg['KEYCLOAK_REALM'])
         url = f'{base_url}/admin/realms/{realm}/clients'
         r = requests.get(url, headers={'Authorization': f'bearer {token}'})
         r.raise_for_status()
