@@ -266,7 +266,7 @@ class BaseHandler(TokenMixin, RestHandler):
 
 class Main(BaseHandler):
     """The main page"""
-    def get(self, *args, **kwargs):
+    def get(self):  # ty: ignore[invalid-method-override]
         self.write({})
 
 
@@ -278,7 +278,7 @@ class WellKnown(BaseHandler):
 
     https://openid.net/specs/openid-connect-discovery-1_0.html
     """
-    async def get(self, *args, **kwargs):
+    async def get(self):  # ty: ignore[invalid-method-override]
         base = self.issuer
         content = {
             'issuer': base,
@@ -335,7 +335,7 @@ class Certs(BaseHandler):
     """
     JWKS certificates.
     """
-    async def get(self, *args, **kwargs):
+    async def get(self):  # ty: ignore[invalid-method-override]
         ret = await self.state.get_jwks()
         self.write(ret)
 
@@ -344,7 +344,7 @@ class Token(DisableXSRF, BaseHandler):
     """
     Handle OAuth2 token requests.
     """
-    async def post(self, *args, **kwargs):  # noqa: C901, PLR0915
+    async def post(self):  # ty: ignore[invalid-method-override]  # noqa: C901, PLR0915
         logging.info('token!')
         # check client id and secret
         client_id = self.current_user
@@ -642,7 +642,7 @@ class Authorize(BaseHandler):
     """
     Handle OAuth2 authorization requests.
     """
-    async def get(self, *args, **kwargs):
+    async def get(self):  # ty: ignore[invalid-method-override]
         logging.info('authorize!')
         # check client id and secret
         client_id = self.get_query_argument('client_id', '')
@@ -682,7 +682,7 @@ class AuthorizeComplete(BaseHandler):
     Handle OAuth2 authorization request completions.
     """
     @catch_error
-    async def get(self, *args, **kwargs):
+    async def get(self):  # ty: ignore[invalid-method-override]
         # get username
         username = await self.get_idp_username()
         logger.info('authorize complete for username %s', username)
@@ -726,7 +726,7 @@ class UserInfo(BaseHandler):
     """
     Handle OAuth2 user info requests.
     """
-    async def get(self, *args, **kwargs):
+    async def get(self):  # ty: ignore[invalid-method-override]
         # get token from auth
         try:
             type, token = self.request.headers['Authorization'].split(' ', 1)
@@ -780,7 +780,7 @@ class DeviceCode(DisableXSRF, BaseHandler):
     """
     Handle OAuth2 device code requests.
     """
-    async def post(self, *args, **kwargs):
+    async def post(self):  # ty: ignore[invalid-method-override]
         logging.info('device code!')
         # check client id and secret
         client_id = self.current_user
@@ -849,10 +849,10 @@ class DeviceCodeVerify(BaseHandler):
             # now check with IdP
             self.redirect(url_concat('/login', {'next': '/device/complete', 'state': user_code}))
 
-    async def get(self):
+    async def get(self):  # ty: ignore[invalid-method-override]
         await self.do_code(self.get_query_argument('user_code', ''))
 
-    async def post(self):
+    async def post(self):  # ty: ignore[invalid-method-override]
         await self.do_code(self.get_body_argument('user_code', ''))
 
 
@@ -860,7 +860,7 @@ class DeviceCodeComplete(BaseHandler):
     """
     Handle OAuth2 device code verification.
     """
-    async def get(self, *args, **kwargs):
+    async def get(self):  # ty: ignore[invalid-method-override]
         user_code = self.get_query_argument('state', '')
         if not user_code:
             raise OAuthError(400, error='invalid_request', description='invalid user_code')
@@ -895,7 +895,7 @@ class ClientRegistration(DisableXSRF, BaseHandler):
     """
     Handle OAuth2 / OpenID Connnect client registration requests.
     """
-    async def post(self, *args, **kwargs):
+    async def post(self):  # ty: ignore[invalid-method-override]
         data = json.loads(self.request.body)
 
         if 'client_name' not in data:
@@ -949,7 +949,7 @@ class ClientDetails(DisableXSRF, BaseHandler):
             logger.warning('cannot get token', exc_info=True)
             raise HTTPError(401, reason='Unauthorized')
 
-    async def get(self, client_id, *args, **kwargs):
+    async def get(self, client_id):  # ty: ignore[invalid-method-override]
         token = self.get_access_token()
         try:
             ret = await self.state.get_client(client_id)
@@ -960,7 +960,7 @@ class ClientDetails(DisableXSRF, BaseHandler):
                 raise HTTPError(403, reason='Forbidden')
             self.write(dc_asdict(ret))
 
-    async def delete(self, client_id, *args, **kwargs):
+    async def delete(self, client_id):  # ty: ignore[invalid-method-override]
         token = self.get_access_token()
         try:
             ret = await self.state.get_client(client_id)
@@ -991,7 +991,7 @@ class Health(BaseHandler):
 
     Mostly for Kubernetes health checks.
     """
-    async def get(self, *args, **kwargs):
+    async def get(self):  # ty: ignore[invalid-method-override]
         ret = {}
         try:
             self.validate.base_path.exists()
