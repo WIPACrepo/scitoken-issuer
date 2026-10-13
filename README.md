@@ -1,8 +1,23 @@
 <!--- Top of README Badges (automated) --->
-[![GitHub release (latest by date including pre-releases)](https://img.shields.io/github/v/release/WIPACrepo/scitoken-issuer?include_prereleases)](https://github.com/WIPACrepo/scitoken-issuer/) [![GitHub issues](https://img.shields.io/github/issues/WIPACrepo/scitoken-issuer)](https://github.com/WIPACrepo/scitoken-issuer/issues?q=is%3Aissue+sort%3Aupdated-desc+is%3Aopen) [![GitHub pull requests](https://img.shields.io/github/issues-pr/WIPACrepo/scitoken-issuer)](https://github.com/WIPACrepo/scitoken-issuer/pulls?q=is%3Apr+sort%3Aupdated-desc+is%3Aopen)
+[![GitHub release (latest by date including pre-releases)](https://img.shields.io/github/v/release/WIPACrepo/scitoken-issuer?include_prereleases)](https://github.com/WIPACrepo/scitoken-issuer) [![GitHub issues](https://img.shields.io/github/issues/WIPACrepo/scitoken-issuer)](https://github.com/WIPACrepo/scitoken-issuer/issues?q=is%3Aissue+sort%3Aupdated-desc+is%3Aopen) [![GitHub pull requests](https://img.shields.io/github/issues-pr/WIPACrepo/scitoken-issuer)](https://github.com/WIPACrepo/scitoken-issuer/pulls?q=is%3Apr+sort%3Aupdated-desc+is%3Aopen)
 <!--- End of README Badges (automated) --->
 # scitoken-issuer
 IceCube / WIPAC SciToken Issuer
+<!--- Top of README Metadata Section (automated) --->
+
+<!--- note: this information is pulled from the pyproject.toml --->
+
+<dl>
+    <dt><sub>Authors</sub></dt>
+    <dd><sub>WIPAC Developers / <a href='mailto:developers@icecube.wisc.edu'>developers@icecube.wisc.edu</a></sub></dd>
+    <dt><sub>Keywords</sub></dt>
+    <dd><sub>transfer</sub></dd>
+    <dt><sub>URLs</sub></dt>
+    <dd><sub><a href='https://github.com/WIPACrepo/scitoken-issuer'>repository</a>&nbsp;&nbsp;·&nbsp;&nbsp;<a href='https://github.com/WIPACrepo/scitoken-issuer'>Homepage</a>&nbsp;&nbsp;·&nbsp;&nbsp;<a href='https://github.com/WIPACrepo/scitoken-issuer/issues'>Tracker</a>&nbsp;&nbsp;·&nbsp;&nbsp;<a href='https://github.com/WIPACrepo/scitoken-issuer'>Source</a></sub></dd>
+</dl>
+
+<br>
+<!--- End of README Metadata Section (automated) --->
 
 ## Running the Issuer
 
