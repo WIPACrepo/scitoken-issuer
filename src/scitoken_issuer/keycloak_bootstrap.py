@@ -14,9 +14,9 @@ ENV Variables:
 import argparse
 import logging
 
-from cachetools import TTLCache
 import krs.bootstrap
 import requests
+from cachetools import TTLCache
 from wipac_dev_tools import from_environment
 
 
