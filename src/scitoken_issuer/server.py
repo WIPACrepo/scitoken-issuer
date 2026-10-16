@@ -682,7 +682,7 @@ class AuthorizeComplete(BaseHandler):
     Handle OAuth2 authorization request completions.
     """
     @catch_error
-    async def get(self):  # ty: ignore[invalid-method-override]
+    async def get(self):
         # get username
         username = await self.get_idp_username()
         logger.info('authorize complete for username %s', username)
@@ -976,7 +976,7 @@ class ClientDetails(DisableXSRF, BaseHandler):
         self.set_status(204)
 
 
-class Login(TokenMixin, OpenIDLoginHandler):  # type: ignore
+class Login(TokenMixin, OpenIDLoginHandler):  # pyright: ignore
     def initialize(self, *args, state, **kwargs):
         self.state = state
         return super().initialize(*args, **kwargs)
