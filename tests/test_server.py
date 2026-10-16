@@ -193,7 +193,7 @@ async def test_registration(server):
 
 
 @asynccontextmanager
-async def make_client(server, scopes=[]):
+async def make_client(server, scopes=[], alg='RS256'):
     async with register_client(server, scopes=['openid', 'storage.read', 'storage.modify']) as data:
         logging.debug('doing device grant')
         rc = DeviceGrantAuth(
@@ -204,6 +204,7 @@ async def make_client(server, scopes=[]):
             scopes=scopes,
             timeout=1,
             retries=0,
+            algorithms=[alg]
         )
         yield rc
 
@@ -251,7 +252,7 @@ async def test_device_auth(key, server, storage, monkeypatch):
 
                 async def common(scopes):
                     login.reset_mock()
-                    async with make_client(address, scopes) as rc:
+                    async with make_client(address, scopes, alg=key) as rc:
                         token = rc._openid_token()
                         assert token
                         assert rc.refresh_token
