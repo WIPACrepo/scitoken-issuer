@@ -189,8 +189,7 @@ async def test_registration(server):
 
         with pytest.raises(requests.exceptions.HTTPError) as exc:
             await rc.request('PUT', path, {})
-        assert exc.value.response
-        assert 405 == exc.value.response.status_code
+        assert 405 == exc.value.response.status_code  # ty: ignore[unresolved-attribute]
 
 
 @asynccontextmanager
@@ -230,7 +229,7 @@ def do_device_login(user):
                 'password': 'test',
             }
             cookies = requests.utils.dict_from_cookiejar(r.cookies)
-            r2 = session.post(action, data=data, cookies=cookies)
+            r2 = session.post(action, data=data, cookies=cookies)  # ty: ignore[invalid-argument-type]
             logging.info('cookies2: %r', r2.cookies)
             try:
                 r2.raise_for_status()
@@ -274,7 +273,7 @@ async def test_device_auth(key, server, storage, monkeypatch):
                         with pytest.raises(Exception) as e:
                             await common(['storage.modify:/data/ana/project1/sub1'])
                         cause: requests.HTTPError = e.value.__cause__  # type: ignore
-                        assert 'invalid scopes' == cause.response.json()['error_description']
+                        assert 'invalid scopes' == cause.response.json()['error_description']  # ty: ignore[unresolved-attribute]
                         data = await common(['storage.read:/data/ana/project3/sub1'])
                         assert 'storage.read:/data/ana/project3/sub1' in data['scope']
                     case 'non':
@@ -284,14 +283,14 @@ async def test_device_auth(key, server, storage, monkeypatch):
                         if not cause:
                             logging.warning('%r', e.value)
                             assert False
-                        assert 'invalid scopes' == cause.response.json()['error_description']
+                        assert 'invalid scopes' == cause.response.json()['error_description']  # ty: ignore[unresolved-attribute]
                         with pytest.raises(Exception) as e:
                             await common(['storage.modify:/data/ana/project3/sub1'])
                         cause: requests.HTTPError = e.value.__cause__  # type: ignore
                         if not cause:
                             logging.warning('%r', e.value)
                             assert False
-                        assert 'invalid scopes' == cause.response.json()['error_description']
+                        assert 'invalid scopes' == cause.response.json()['error_description']  # ty: ignore[unresolved-attribute]
 
 
 async def test_userinfo(server, storage, monkeypatch):
@@ -351,7 +350,7 @@ async def test_authorize(server, storage, monkeypatch):
                     cookies = requests.utils.dict_from_cookiejar(r.cookies)
                     url = None
                     try:
-                        r2 = session.post(action, data=data, cookies=cookies)
+                        r2 = session.post(action, data=data, cookies=cookies)  # ty: ignore[invalid-argument-type]
                         logging.info('cookies2: %r', r2.cookies)
                         url = r2.request.url
                         r2.raise_for_status()
@@ -468,7 +467,7 @@ async def test_static_client(server, storage, monkeypatch):
                 cookies: dict[str, str] = requests.utils.dict_from_cookiejar(r.cookies)
                 url = None
                 try:
-                    r2 = session.post(action, data=data, cookies=cookies)
+                    r2 = session.post(action, data=data, cookies=cookies)  # ty: ignore[invalid-argument-type]
                     logging.info('cookies2: %r', r2.cookies)
                     url = r2.request.url
                     r2.raise_for_status()
@@ -568,17 +567,17 @@ async def test_token_exchange_impersonate(server, storage):
                     case 'test2':
                         with pytest.raises(requests.HTTPError) as e:
                             await common(['storage.modify:/data/ana/project1/sub1'])
-                        assert 'invalid scopes' == e.value.response.json()['error_description']
+                        assert 'invalid scopes' == e.value.response.json()['error_description']  # ty: ignore[unresolved-attribute]
                         data, rt = await common(['storage.read:/data/ana/project3/sub1'])
                         assert 'storage.read:/data/ana/project3/sub1' in data['scope']
                         await refresh(rt)
                     case 'non':
                         with pytest.raises(requests.HTTPError) as e:
                             await common(['storage.modify:/data/ana/project1/sub1'])
-                        assert 'invalid scopes' == e.value.response.json()['error_description']
+                        assert 'invalid scopes' == e.value.response.json()['error_description']  # ty: ignore[unresolved-attribute]
                         with pytest.raises(requests.HTTPError) as e:
                             await common(['storage.modify:/data/ana/project3/sub1'])
-                        assert 'invalid scopes' == e.value.response.json()['error_description']
+                        assert 'invalid scopes' == e.value.response.json()['error_description']  # ty: ignore[unresolved-attribute]
 
 
 async def test_token_exchange_impersonate_bad_client(server, storage):
@@ -606,7 +605,7 @@ async def test_token_exchange_impersonate_bad_client(server, storage):
                     r = session.post(f'{address}/token', data=args, auth=(client_id, client_secret))
                     with pytest.raises(requests.HTTPError) as e:
                         r.raise_for_status()
-                    assert 'cannot impersonate' == e.value.response.json()['error_description']
+                    assert 'cannot impersonate' == e.value.response.json()['error_description']  # ty: ignore[unresolved-attribute]
 
 
 async def test_token_exchange_impersonate_bad_request(server, storage):
@@ -636,7 +635,7 @@ async def test_token_exchange_impersonate_bad_request(server, storage):
                     r = session.post(f'{address}/token', data=args, auth=(client_id, client_secret))
                     with pytest.raises(requests.HTTPError) as e:
                         r.raise_for_status()
-                    assert 'subject_token (user-based impersonation) is not allowed' == e.value.response.json()['error_description']
+                    assert 'subject_token (user-based impersonation) is not allowed' == e.value.response.json()['error_description']  # ty: ignore[unresolved-attribute]
 
                     # copied from https://www.keycloak.org/securing-apps/token-exchange#_impersonation
                     args = {
@@ -650,7 +649,7 @@ async def test_token_exchange_impersonate_bad_request(server, storage):
                     r = session.post(f'{address}/token', data=args, auth=(client_id, client_secret))
                     with pytest.raises(requests.HTTPError) as e:
                         r.raise_for_status()
-                    assert 'audience of a different client is not supported' == e.value.response.json()['error_description']
+                    assert 'audience of a different client is not supported' == e.value.response.json()['error_description']  # ty: ignore[unresolved-attribute]
 
 
 async def test_token_exchange_client(server, storage):
@@ -724,14 +723,14 @@ async def test_token_exchange_client(server, storage):
                     case 'test2':
                         with pytest.raises(requests.HTTPError) as e:
                             await common(['storage.modify:/data/ana/project1/sub1'])
-                        assert 'invalid scopes' == e.value.response.json()['error_description']
+                        assert 'invalid scopes' == e.value.response.json()['error_description']  # ty: ignore[unresolved-attribute]
                         data, rt = await common(['storage.read:/data/ana/project3/sub1'])
                         assert 'storage.read:/data/ana/project3/sub1' in data['scope']
                         await refresh(rt)
                     case 'non':
                         with pytest.raises(requests.HTTPError) as e:
                             await common(['storage.modify:/data/ana/project1/sub1'])
-                        assert 'invalid scopes' == e.value.response.json()['error_description']
+                        assert 'invalid scopes' == e.value.response.json()['error_description']  # ty: ignore[unresolved-attribute]
                         with pytest.raises(requests.HTTPError) as e:
                             await common(['storage.modify:/data/ana/project3/sub1'])
-                        assert 'invalid scopes' == e.value.response.json()['error_description']
+                        assert 'invalid scopes' == e.value.response.json()['error_description']  # ty: ignore[unresolved-attribute]
