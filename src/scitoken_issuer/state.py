@@ -18,7 +18,7 @@ logger = logging.getLogger('state')
 
 
 def _make_new_key() -> GenKeysBase:
-    logger.debug('making new key of type %s', config.ENV.KEY_TYPE)
+    logger.info('making new key of type %s', config.ENV.KEY_TYPE)
     if config.ENV.KEY_TYPE.startswith('RS'):
         return GenKeysRSA(key_bytes=int(config.ENV.KEY_TYPE[2:]))
     elif config.ENV.KEY_TYPE.startswith('ES'):
