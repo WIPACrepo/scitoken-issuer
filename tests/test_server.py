@@ -189,6 +189,7 @@ async def test_registration(server):
 
         with pytest.raises(requests.exceptions.HTTPError) as exc:
             await rc.request('PUT', path, {})
+        assert exc.value.response
         assert 405 == exc.value.response.status_code
 
 
@@ -228,7 +229,7 @@ def do_device_login(user):
                 'username': user,
                 'password': 'test',
             }
-            cookies = requests.utils.dict_from_cookiejar(r.cookies)
+            cookies: dict[str, str] = requests.utils.dict_from_cookiejar(r.cookies)
             r2 = session.post(action, data=data, cookies=cookies)
             logging.info('cookies2: %r', r2.cookies)
             try:
@@ -273,6 +274,7 @@ async def test_device_auth(key, server, storage, monkeypatch):
                         with pytest.raises(Exception) as e:
                             await common(['storage.modify:/data/ana/project1/sub1'])
                         cause: requests.HTTPError = e.value.__cause__  # type: ignore
+                        assert cause.response
                         assert 'invalid scopes' == cause.response.json()['error_description']
                         data = await common(['storage.read:/data/ana/project3/sub1'])
                         assert 'storage.read:/data/ana/project3/sub1' in data['scope']
@@ -283,6 +285,7 @@ async def test_device_auth(key, server, storage, monkeypatch):
                         if not cause:
                             logging.warning('%r', e.value)
                             assert False
+                        assert cause.response
                         assert 'invalid scopes' == cause.response.json()['error_description']
                         with pytest.raises(Exception) as e:
                             await common(['storage.modify:/data/ana/project3/sub1'])
@@ -290,6 +293,7 @@ async def test_device_auth(key, server, storage, monkeypatch):
                         if not cause:
                             logging.warning('%r', e.value)
                             assert False
+                        assert cause.response
                         assert 'invalid scopes' == cause.response.json()['error_description']
 
 
@@ -355,9 +359,9 @@ async def test_authorize(server, storage, monkeypatch):
                         url = r2.request.url
                         r2.raise_for_status()
                     except requests.exceptions.ConnectionError as e:
-                        if e.request:
-                            url = e.request.url
-                            if not url or not url.startswith(redirect_uri):
+                        if e.request and e.request.url:
+                            url = str(e.request.url)
+                            if not url.startswith(redirect_uri):
                                 raise
                     except requests.exceptions.RequestException as e:
                         if e.response:
@@ -464,7 +468,7 @@ async def test_static_client(server, storage, monkeypatch):
                     'username': user,
                     'password': 'test',
                 }
-                cookies = requests.utils.dict_from_cookiejar(r.cookies)
+                cookies: dict[str, str] = requests.utils.dict_from_cookiejar(r.cookies)
                 url = None
                 try:
                     r2 = session.post(action, data=data, cookies=cookies)
@@ -472,9 +476,9 @@ async def test_static_client(server, storage, monkeypatch):
                     url = r2.request.url
                     r2.raise_for_status()
                 except requests.exceptions.ConnectionError as e:
-                    if e.request:
-                        url = e.request.url
-                        if not url or not url.startswith(redirect_uri):
+                    if e.request and e.request.url:
+                        url = str(e.request.url)
+                        if not url.startswith(redirect_uri):
                             raise
                 except requests.exceptions.RequestException as e:
                     if e.response:
@@ -567,6 +571,7 @@ async def test_token_exchange_impersonate(server, storage):
                     case 'test2':
                         with pytest.raises(requests.HTTPError) as e:
                             await common(['storage.modify:/data/ana/project1/sub1'])
+                        assert e.value.response
                         assert 'invalid scopes' == e.value.response.json()['error_description']
                         data, rt = await common(['storage.read:/data/ana/project3/sub1'])
                         assert 'storage.read:/data/ana/project3/sub1' in data['scope']
@@ -574,9 +579,11 @@ async def test_token_exchange_impersonate(server, storage):
                     case 'non':
                         with pytest.raises(requests.HTTPError) as e:
                             await common(['storage.modify:/data/ana/project1/sub1'])
+                        assert e.value.response
                         assert 'invalid scopes' == e.value.response.json()['error_description']
                         with pytest.raises(requests.HTTPError) as e:
                             await common(['storage.modify:/data/ana/project3/sub1'])
+                        assert e.value.response
                         assert 'invalid scopes' == e.value.response.json()['error_description']
 
 
@@ -605,6 +612,7 @@ async def test_token_exchange_impersonate_bad_client(server, storage):
                     r = session.post(f'{address}/token', data=args, auth=(client_id, client_secret))
                     with pytest.raises(requests.HTTPError) as e:
                         r.raise_for_status()
+                    assert e.value.response
                     assert 'cannot impersonate' == e.value.response.json()['error_description']
 
 
@@ -635,6 +643,7 @@ async def test_token_exchange_impersonate_bad_request(server, storage):
                     r = session.post(f'{address}/token', data=args, auth=(client_id, client_secret))
                     with pytest.raises(requests.HTTPError) as e:
                         r.raise_for_status()
+                    assert e.value.response
                     assert 'subject_token (user-based impersonation) is not allowed' == e.value.response.json()['error_description']
 
                     # copied from https://www.keycloak.org/securing-apps/token-exchange#_impersonation
@@ -649,6 +658,7 @@ async def test_token_exchange_impersonate_bad_request(server, storage):
                     r = session.post(f'{address}/token', data=args, auth=(client_id, client_secret))
                     with pytest.raises(requests.HTTPError) as e:
                         r.raise_for_status()
+                    assert e.value.response
                     assert 'audience of a different client is not supported' == e.value.response.json()['error_description']
 
 
@@ -723,6 +733,7 @@ async def test_token_exchange_client(server, storage):
                     case 'test2':
                         with pytest.raises(requests.HTTPError) as e:
                             await common(['storage.modify:/data/ana/project1/sub1'])
+                        assert e.value.response
                         assert 'invalid scopes' == e.value.response.json()['error_description']
                         data, rt = await common(['storage.read:/data/ana/project3/sub1'])
                         assert 'storage.read:/data/ana/project3/sub1' in data['scope']
@@ -730,7 +741,9 @@ async def test_token_exchange_client(server, storage):
                     case 'non':
                         with pytest.raises(requests.HTTPError) as e:
                             await common(['storage.modify:/data/ana/project1/sub1'])
+                        assert e.value.response
                         assert 'invalid scopes' == e.value.response.json()['error_description']
                         with pytest.raises(requests.HTTPError) as e:
                             await common(['storage.modify:/data/ana/project3/sub1'])
+                        assert e.value.response
                         assert 'invalid scopes' == e.value.response.json()['error_description']
