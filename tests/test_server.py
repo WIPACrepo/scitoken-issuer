@@ -464,7 +464,7 @@ async def test_static_client(server, storage, monkeypatch):
                     'username': user,
                     'password': 'test',
                 }
-                cookies: dict[str, str] = requests.utils.dict_from_cookiejar(r.cookies)
+                cookies = requests.utils.dict_from_cookiejar(r.cookies)
                 url = None
                 try:
                     r2 = session.post(action, data=data, cookies=cookies)  # ty: ignore[invalid-argument-type]
