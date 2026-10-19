@@ -27,7 +27,7 @@ jobs:
 
   lint-python:
     needs: [ py-versions ]
-    uses: WIPACrepo/wipac-dev-workflows/.github/workflows/lint-python.yml@v1.25
+    uses: WIPACrepo/wipac-dev-workflows/.github/workflows/lint-python.yml@v1.34
     permissions:
       contents: read
     with:
